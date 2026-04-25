@@ -530,7 +530,7 @@ def export_pdf():
         LEFT JOIN list_church_status ch ON p.church_status = ch.id
         LEFT JOIN photos ph ON p.id = ph.people_id
         WHERE {filter_sql}
-        ORDER BY p.name COLLATE UKRAINIAN ASC
+        ORDER BY p.name COLLATE UKRAINIAN_CUSTOM ASC
     '''
     rows = conn.execute(query, params).fetchall()
     conn.close()
