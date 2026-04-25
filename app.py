@@ -534,9 +534,37 @@ import pdfkit
 def export_pdf():
     # 1. Отримуємо параметри фільтрації та нові параметри налаштування
     filter_sql, params = build_filter_query(request.args)
+    birthday_filter = request.args.get('birthday_filter') == 'true'
+    # 2. Враховуємо фільтр днів народження (іменинники тижня)
+    if birthday_filter:
+        # Вираховуємо межі поточного тижня
+        today = datetime.now().date()
+        start_week = today - timedelta(days=today.weekday())
+        end_week = start_week + timedelta(days=6)
     
+        # Форматуємо для SQLite (місяць-день)
+        start_str = start_week.strftime('%m-%d')
+        end_str = end_week.strftime('%m-%d')
+        
+        if start_str <= end_str:
+            filter_sql += " AND strftime('%m-%d', Date_of_Birth) BETWEEN ? AND ?"
+            params.extend([start_str, end_str])
+        else:
+            # Випадок переходу через Новий Рік
+            filter_sql += " AND (strftime('%m-%d', Date_of_Birth) >= ? OR strftime('%m-%d', Date_of_Birth) <= ?)"
+            params.extend([start_str, end_str])
+        # Логіка для SQLite: дні народження на найближчі 7 днів
+        #filter_sql += """ 
+        #    AND strftime('%m-%d', Date_of_Birth) BETWEEN 
+        #    strftime('%m-%d', 'now') AND strftime('%m-%d', 'now', '+7 days')
+        #"""
+        
+    print(f"people/export_pdf filter_sql {filter_sql}")
+        
     photo_size_key = request.args.get('photo_size', 'medium')  # За замовчуванням середній
     header_filters = request.args.get('header_filters', 'Всі записи') # Другий рядок заголовка
+    if birthday_filter:
+        header_filters = "Іменинники тижня " + header_filters
 
     # 2. Мапінг розмірів для передачі в CSS шаблону
     # Відповідає розмірам, які ми показували в модальному вікні (Прев'ю)
@@ -559,8 +587,17 @@ def export_pdf():
         LEFT JOIN list_church_status ch ON p.church_status = ch.id
         LEFT JOIN photos ph ON p.id = ph.people_id
         WHERE {filter_sql}
-        ORDER BY p.name COLLATE UKRAINIAN_CUSTOM ASC
+        
     '''
+    
+    # Додаємо сортування за днем народження (ігноруючи рік)
+    order_query = " ORDER BY name COLLATE UKRAINIAN_CUSTOM ASC"
+    
+    if birthday_filter:
+        order_query = f" ORDER BY strftime('%m-%d', Date_of_Birth) ASC"
+    
+    query += order_query    
+        
     rows = conn.execute(query, params).fetchall()
     conn.close()
 
@@ -607,12 +644,18 @@ def export_pdf():
         'page-size': 'A4',
         'encoding': "UTF-8",
         'margin-top': '15mm',
-        'margin-bottom': '15mm',
+        'margin-bottom': '20mm',
         'margin-left': '10mm',
         'margin-right': '10mm',
         'no-outline': None,
         'enable-local-file-access': None,
-        'quiet': '' # щоб не забивати лог сервера
+        'quiet': '', # щоб не забивати лог сервера
+        
+        # ДОДАЄМО ЦІ РЯДКИ:
+        'footer-center': 'Сторінка [page] з [toPage]', # Текст по центру
+        'footer-font-size': '9',                        # Розмір шрифту
+        'footer-spacing': '5',                         # Відступ від тексту до номера
+        'footer-font-name': 'DejaVu Sans'
     }
     
     # Генерація

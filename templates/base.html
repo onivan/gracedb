@@ -38,6 +38,86 @@
             z-index: 1050;
             display: none;
         }
+
+        /* Адаптивність для мобільних пристроїв */
+        @media (max-width: 768px) {
+            /* Ховаємо стандартну шапку таблиці */
+            #mainPeopleTable thead {
+                display: none;
+            }
+
+            /* Кожен рядок таблиці перетворюємо на картку */
+            #mainPeopleTable, #mainPeopleTable tbody, #mainPeopleTable tr, #mainPeopleTable td {
+                display: block;
+                width: 100%;
+            }
+
+            #mainPeopleTable tr {
+                margin-bottom: 15px;
+                border: 1px solid #dee2e6;
+                border-radius: 10px;
+                background: #fff;
+                padding: 10px;
+                box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            }
+
+            /* Кожна комірка (td) отримує заголовок зліва */
+            #mainPeopleTable td {
+                text-align: right;
+                padding-left: 50%;
+                position: relative;
+                border: none;
+                min-height: 35px;
+                display: flex;
+                justify-content: flex-end;
+                align-items: center;
+                border-bottom: 1px solid #f8f9fa;
+            }
+
+            #mainPeopleTable td:last-child {
+                border-bottom: none;
+                justify-content: center;
+                padding: 10px 0 0 0;
+            }
+
+            /* Використовуємо атрибут data-label для відображення назви поля */
+            #mainPeopleTable td::before {
+                content: attr(data-label);
+                position: absolute;
+                left: 10px;
+                width: 45%;
+                font-weight: 600;
+                text-align: left;
+                color: #6c757d;
+                font-size: 0.85rem;
+            }
+
+            /* Окремий стиль для імені (робимо акцент) */
+            #mainPeopleTable td[data-label="Ім'я"] {
+                font-weight: bold;
+                font-size: 1.1rem;
+                border-bottom: 2px solid #eee;
+                margin-bottom: 5px;
+            }
+
+            /* Ховаємо ID на мобільних, щоб не займав місце */
+            #mainPeopleTable td[data-label="ID"] {
+                display: none;
+            }
+        }
+
+        /* Покращення панелі пошуку та кнопок */
+        @media (max-width: 576px) {
+            .d-flex.gap-2 {
+                flex-wrap: wrap; /* Кнопки експорту/БД будуть переноситися */
+            }
+            .btn {
+                flex-grow: 1; /* Кнопки на всю ширину на вузьких екранах */
+            }
+            #searchInput {
+                font-size: 16px; /* Запобігає автоматичному зуму на iOS при фокусі */
+            }
+        }
     </style>
     {% block head %}{% endblock %}
 </head>

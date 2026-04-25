@@ -148,6 +148,7 @@ function renderPeople(people) {
             if (!columnConfig[key].visible) return;
 
             const td = document.createElement('td');
+            td.setAttribute('data-label', columnConfig[key].title);
 
             if (key === 'phones') {
                 const phoneFields = ['Mobile_Phone', 'Home_phone', 'Work_phone', 'Mobile_Phone_a'];
@@ -1043,7 +1044,12 @@ function updatePdfPreview() {
 // 3. Основна функція експорту (викликається з модального вікна)
 function runServerExport() {
     const params = new URLSearchParams();
-
+    
+    // Додаємо стан фільтра днів народження
+    if (typeof birthdayFilterActive !== 'undefined' && birthdayFilterActive) {
+        params.append('birthday_filter', 'true');
+    }
+    
     // 1. Збираємо фільтри для серверного запиту (ваша існуюча логіка)
     const fName = document.getElementById('f_name').value;
     const fPhone = document.getElementById('f_phone').value;
