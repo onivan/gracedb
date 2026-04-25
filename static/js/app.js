@@ -136,7 +136,15 @@ function renderPeople(people) {
     tbody.innerHTML = '';
     people.forEach(person => {
         const tr = document.createElement('tr');
+        // Створюємо прихований контейнер для фото, який буде видно тільки на мобільних
+        const mobilePhotoContainer = document.createElement('div');
+        mobilePhotoContainer.className = 'mobile-photo-box';
+        const photoUrl = person.has_photo 
+            ? `${SCRIPT_ROOT}/api/photo_file_people/${person.id}?t=${new Date().getTime()}`
+            : `${SCRIPT_ROOT}/static/img/no-avatar.png`; // переконайтеся, що файл існує
+        mobilePhotoContainer.innerHTML = `<img src="${photoUrl}" alt="${person.name}">`;
         
+        tr.appendChild(mobilePhotoContainer); // Додаємо в рядок
         // Повертаємо підсвітку рядка та завантаження фото по кліку
         tr.onclick = () => {
             document.querySelectorAll('tr').forEach(r => r.classList.remove('table-active-row'));

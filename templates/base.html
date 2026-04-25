@@ -118,6 +118,55 @@
                 font-size: 16px; /* Запобігає автоматичному зуму на iOS при фокусі */
             }
         }
+    /* Закріплення панелі фільтрів */
+        .sticky-controls {
+            position: sticky;
+            top: 0; /* Якщо є верхнє меню (navbar), змініть на 56px (висота меню) */
+            z-index: 1010;
+            background-color: #f4f7f6; /* Має збігатися з фоном сторінки */
+            padding-top: 15px;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        /* На мобільних телефонах додаємо невеликий відступ зверху */
+        @media (max-width: 768px) {
+            .sticky-controls {
+                top: 0;
+                padding-top: 10px;
+            }
+        }
+        
+        @media (max-width: 768px) {
+        /* Контейнер для фото в картці */
+        .mobile-photo-box {
+            display: block; /* Показуємо на мобільних */
+            text-align: center;
+            margin-bottom: 10px;
+        }
+
+        .mobile-photo-box img {
+            width: 120px;
+            height: 120px;
+            object-fit: cover;
+            border-radius: 5%;
+            border: 3px solid #fff;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        /* Ховаємо фото-бокс на десктопах через JS або CSS */
+        #mainPeopleTable tr .mobile-photo-box {
+            display: block;
+        }
+    }
+
+    /* На комп'ютерах ховаємо цей бокс */
+    @media (min-width: 769px) {
+        .mobile-photo-box {
+            display: none;
+        }
+    }
     </style>
     {% block head %}{% endblock %}
 </head>

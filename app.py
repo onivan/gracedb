@@ -215,7 +215,7 @@ def get_people():
         # Додаємо перевірку на тиждень народжень
         birthday_week = request.args.get('birthday_week')
         
-        query = "SELECT * FROM people WHERE 1=1"
+        query = "SELECT *, (SELECT 1 FROM photos WHERE people_id = people.id LIMIT 1) as has_photo FROM people WHERE 1=1"
         params = []
 
         # Пошук по імені
@@ -400,6 +400,23 @@ def get_photo_file(photo_id):
             mimetype='image/jpeg'
         )
     return "Фото не знайдено", 404
+
+# Маршрут для відображення фото по people_id(використовується в тегу <img>)
+@app.route('/api/photo_file_people/<int:people_id>')
+@login_required
+def get_photo_file_people(people_id):
+    conn = get_db_connection()
+    row = conn.execute('SELECT photo, descr FROM photos WHERE people_id = ?', (people_id,)).fetchone()
+    conn.close()
+    
+    if row and row['photo']:
+        # Повертаємо бінарні дані як файл
+        return send_file(
+            io.BytesIO(row['photo']),
+            mimetype='image/jpeg'
+        )
+    return "Фото не знайдено", 404
+
 
 @app.route('/api/photos', methods=['POST'])
 @login_required

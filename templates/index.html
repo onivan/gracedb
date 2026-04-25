@@ -3,104 +3,105 @@
 {% block content %}
 <div class="row">
     <div class="col-md-8">
-        <div class="d-flex flex-wrap gap-2 mb-3">
-			<h2 class="h4">База людей</h2>
-			<div class="d-flex gap-2">
-				<button class="btn btn-outline-danger flex-fill" 
-						data-bs-toggle="modal" 
-						data-bs-target="#exportPdfModal"
-						onclick="updatePdfPreview()"> 📄 PDF
-				</button>
-                <button id="btn-birthday" class="btn btn-outline-info flex-fill" onclick="toggleBirthdayFilter()">
-                    🎂 Дні народження
-                </button>
-				<a href="/api/admin/db/download" class="btn btn-outline-secondary btn-sm">
-					📥 Скачати БД
-				</a>
-				
-				<button class="btn btn-outline-info flex-fill" onclick="document.getElementById('dbInput').click()">
-					📤 Оновити БД
-				</button>
-				
-				<input type="file" id="dbInput" style="display: none;" accept=".sqlite" onchange="uploadDatabase(this)">
-			</div>
+        <div class="sticky-controls">
+            <div class="d-flex flex-wrap gap-2 mb-3">
+                <h2 class="h4">База людей</h2>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-outline-danger flex-fill" 
+                            data-bs-toggle="modal" 
+                            data-bs-target="#exportPdfModal"
+                            onclick="updatePdfPreview()"> 📄 PDF
+                    </button>
+                    <button id="btn-birthday" class="btn btn-outline-info flex-fill" onclick="toggleBirthdayFilter()">
+                        🎂 Дні народження
+                    </button>
+                    <a href="/api/admin/db/download" class="btn btn-outline-secondary btn-sm">
+                        📥 Скачати БД
+                    </a>
+                    
+                    <button class="btn btn-outline-info flex-fill" onclick="document.getElementById('dbInput').click()">
+                        📤 Оновити БД
+                    </button>
+                    
+                    <input type="file" id="dbInput" style="display: none;" accept=".sqlite" onchange="uploadDatabase(this)">
+                </div>
 
-			<div class="d-flex align-items-center">
-				<select id="limitSelect" class="form-select form-select-sm d-inline-block w-auto me-2">
-					<option value="5">5</option>
-					<option value="10">10</option>
-					<option value="20">20</option>
-					<option value="50">50</option>
-				</select>
+                <div class="d-flex align-items-center">
+                    <select id="limitSelect" class="form-select form-select-sm d-inline-block w-auto me-2">
+                        <option value="5">5</option>
+                        <option value="10">10</option>
+                        <option value="20">20</option>
+                        <option value="50">50</option>
+                    </select>
 
-				<div class="dropdown me-2">
-					<button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-						⚙️ Колонки
-					</button>
-					<ul class="dropdown-menu dropdown-menu-end p-2" id="columnToggleMenu" style="min-width: 200px;">
-						</ul>
-				</div>
+                    <div class="dropdown me-2">
+                        <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            ⚙️ Колонки
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end p-2" id="columnToggleMenu" style="min-width: 200px;">
+                            </ul>
+                    </div>
 
-				<button class="btn btn-primary btn-sm" onclick="openModal()">+ Додати особу</button>
-			</div>
-		</div>
- 
-		<div class="card shadow-sm mb-4">
-			<div class="card-body">
-				<div class="d-flex justify-content-between align-items-center mb-3">
-					<h5 class="card-title h6 mb-0">🔍 Пошук
-					<span id="activeFiltersDisplay" class="text-primary ms-2" style="font-size: 0.85rem; font-weight: normal;"></span><br />
-<!--
-                    <span id="birthdayFilterActiveDisplay" class="text-primary ms-2" style="font-size: 0.85rem; font-weight: normal;"></span>
--->
-					<span id="resultsCount" class="badge bg-secondary ms-2" style="font-size: 0.75rem;"></span>
-					</h5>
-					<button class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#advancedFilterModal">
-						⚙️ Розширені фільтри
-					</button>
-				</div>
-				<div class="row g-2">
-					<div class="col-md-4">
-						<input type="text" id="f_name" class="form-control form-control-sm filter-input" placeholder="ПІБ (від 3-х симв.)...">
-					</div>
-					<div class="col-md-4">
-						<input type="text" id="f_phone" class="form-control form-control-sm filter-input" placeholder="Телефон...">
-					</div>
-					<div class="col-md-4">
-						<input type="text" id="f_address" class="form-control form-control-sm filter-input" placeholder="Адреса...">
-					</div>
-				</div>
-			</div>
-		</div>
+                    <button class="btn btn-primary btn-sm" onclick="openModal()">+ Додати особу</button>
+                </div>
+            </div>
+     
+            <div class="card shadow-sm mb-4">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="card-title h6 mb-0">🔍 Пошук
+                        <span id="activeFiltersDisplay" class="text-primary ms-2" style="font-size: 0.85rem; font-weight: normal;"></span><br />
+    <!--
+                        <span id="birthdayFilterActiveDisplay" class="text-primary ms-2" style="font-size: 0.85rem; font-weight: normal;"></span>
+    -->
+                        <span id="resultsCount" class="badge bg-secondary ms-2" style="font-size: 0.75rem;"></span>
+                        </h5>
+                        <button class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#advancedFilterModal">
+                            ⚙️ Розширені фільтри
+                        </button>
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-md-4">
+                            <input type="text" id="f_name" class="form-control form-control-sm filter-input" placeholder="ПІБ (від 3-х симв.)...">
+                        </div>
+                        <div class="col-md-4">
+                            <input type="text" id="f_phone" class="form-control form-control-sm filter-input" placeholder="Телефон...">
+                        </div>
+                        <div class="col-md-4">
+                            <input type="text" id="f_address" class="form-control form-control-sm filter-input" placeholder="Адреса...">
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-		<div class="modal fade" id="advancedFilterModal" tabindex="-1" aria-hidden="true">
-			<div class="modal-dialog">
-				<div class="modal-content">
-					<div class="modal-header">
-						<h5 class="modal-title">Розширені фільтри</h5>
-						<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-					</div>
-					<div class="modal-body">
-						<h6>Стать</h6>
-						<div id="genderCheckboxes" class="mb-3 d-flex gap-3 border-bottom pb-2">
-							</div>
+            <div class="modal fade" id="advancedFilterModal" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Розширені фільтри</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <h6>Стать</h6>
+                            <div id="genderCheckboxes" class="mb-3 d-flex gap-3 border-bottom pb-2">
+                                </div>
 
-						<h6>Церковний статус</h6>
-						<div id="churchStatusCheckboxes" class="mb-3 border-bottom pb-2">
-							</div>
+                            <h6>Церковний статус</h6>
+                            <div id="churchStatusCheckboxes" class="mb-3 border-bottom pb-2">
+                                </div>
 
-						<h6>Сімейний стан</h6>
-						<div id="familyStatusCheckboxes" class="mb-3">
-							</div>
-					</div>
-					<div class="modal-footer">
-						<button type="button" class="btn btn-secondary btn-sm" onclick="clearFilters()">Скинути все</button>
-						<button type="button" class="btn btn-primary btn-sm" data-bs-dismiss="modal" onclick="applyFilters()">Застосувати</button>
-					</div>
-				</div>
-			</div>
-		</div>
-
+                            <h6>Сімейний стан</h6>
+                            <div id="familyStatusCheckboxes" class="mb-3">
+                                </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary btn-sm" onclick="clearFilters()">Скинути все</button>
+                            <button type="button" class="btn btn-primary btn-sm" data-bs-dismiss="modal" onclick="applyFilters()">Застосувати</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
 		<div class="card shadow-sm">
 			<div class="table-responsive">
 				<table class="table table-hover mb-0" id="mainPeopleTable" style="font-size: 0.85rem;">
