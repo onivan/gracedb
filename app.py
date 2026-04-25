@@ -3,6 +3,7 @@ from flask import Flask, render_template, request, jsonify, session, redirect, u
 from werkzeug.security import check_password_hash
 import io
 import os
+import sys
 
 # Якщо Flask не бачить підпапку від Apache/mod_wsgi
 from werkzeug.middleware.proxy_fix import ProxyFix
@@ -19,6 +20,11 @@ from functools import wraps
 from flask import abort
 
 
+import logging
+from logging.handlers import RotatingFileHandler
+
+    
+    
 # Спробуємо встановити українську локаль (якщо вона є на сервері)
 try:
     locale.setlocale(locale.LC_ALL, 'uk_UA.UTF-8')
@@ -28,6 +34,8 @@ except:
   
 
 app = Flask(__name__)
+
+
 
 #app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 
@@ -47,6 +55,33 @@ app.config['SESSION_COOKIE_PATH'] = '/gracedb/'
 
 
 app.secret_key = 'super_secret_key_change_me' # Обов'язково змініть для безпеки
+
+if not app.debug:
+    # Шлях до файлу логів у вашій папці проекту
+    log_path = os.path.join(BASE_DIR, 'database', 'error.log')
+    
+    file_handler = RotatingFileHandler(log_path, maxBytes=10240, backupCount=10)
+    file_handler.setFormatter(logging.Formatter(
+        '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'
+    ))
+    file_handler.setLevel(logging.INFO)
+    app.logger.addHandler(file_handler)
+    app.logger.info('GraceDB startup')
+
+
+DEBUG_LOG_PATH = os.path.join(BASE_DIR, 'debug.txt')
+
+# Налаштування логера
+logging.basicConfig(
+    filename=DEBUG_LOG_PATH,
+    level=logging.DEBUG, # Рівень: DEBUG, INFO, WARNING, ERROR, CRITICAL
+    format='%(asctime)s %(levelname)s: %(message)s [в %(pathname)s:%(lineno)d]',
+    encoding='utf-8'
+)
+
+# Створюємо об'єкт логера
+logger = logging.getLogger('gracedb_debug')
+logger.debug(f"Дебаг")
 
 
 def get_db_connection():
@@ -132,10 +167,13 @@ def get_lists():
 @app.route('/api/people')
 @login_required
 def get_people():
+    logger.debug("--- Запит до /api/people розпочато ---")
+    # Додаємо сортування та ліміти
     try:
+        logger.debug(f"Всі параметри запиту: {request.args.to_dict()}")
         # Параметри пагінації
         page = int(request.args.get('page', 1))
-        limit = int(request.args.get('limit', 10))
+        limit = int(request.args.get('limit', 5))
         offset = (page - 1) * limit
 
         # Текстові фільтри
@@ -150,7 +188,7 @@ def get_people():
         f_family = request.args.getlist('family_status[]')
 
         # Додаємо перевірку на тиждень народжень
-        birthday_week = request.args.get('birthday_week') == 'true'
+        birthday_week = request.args.get('birthday_week')
         
         query = "SELECT * FROM people WHERE 1=1"
         params = []
@@ -188,7 +226,7 @@ def get_people():
             query += f" AND fam_status IN ({placeholders})"
             params.extend(f_family)
 
-        if birthday_week:
+        if birthday_week=='true':
             # Вираховуємо межі поточного тижня
             today = datetime.now().date()
             start_week = today - timedelta(days=today.weekday())
@@ -207,22 +245,33 @@ def get_people():
                 params.extend([start_str, end_str])
  
        
+        logger.debug(f"Запит query: {query}")
         conn = get_db_connection()
+        
         
         # Рахуємо загальну кількість результатів для пагінації
         count_query = f"SELECT COUNT(*) FROM ({query})"
         total = conn.execute(count_query, params).fetchone()[0]
 
-        # Додаємо сортування та ліміти
-        # Додаємо сортування за днем народження (ігноруючи рік)
-        if birthday_week:
-            order_query += " ORDER BY strftime('%m-%d', Date_of_Birth) ASC"
-        else:
-            order_query += " ORDER BY name COLLATE UKRAINIAN ASC LIMIT ? OFFSET ?"
-
-        final_query = query + order_query
-        final_params = params + [limit, offset]
         
+        # Додаємо сортування за днем народження (ігноруючи рік)
+        
+        #if birthday_week=='true':
+        #    order_query = " ORDER BY strftime('%m-%d', Date_of_Birth) ASC  LIMIT ? OFFSET ?"
+            
+
+        final_query = query + " ORDER BY name COLLATE UKRAINIAN ASC LIMIT ? OFFSET ?"
+        
+        logger.debug(f"Запит final_query: {final_query}")
+        
+        print(f"DEBUG final_query: {final_query}", file=sys.stderr)
+        
+        logger.debug(f"Запит params: {params}")
+        
+        print(f"DEBUG PARAMS: {params}", file=sys.stderr)
+        
+        final_params = params + [limit, offset]
+         
         rows = conn.execute(final_query, final_params).fetchall()
         conn.close()
 
