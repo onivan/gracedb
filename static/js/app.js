@@ -377,7 +377,7 @@ async function loadPeople() {
         
         // Якщо активовано дні народження, можна змінити заголовок над списком
         if (birthdayFilterActive) {
-            //countDisplay.innerText += " (іменинники тижня)";
+            countDisplay.innerText += " (іменинники тижня)";
             document.getElementById('birthdayFilterActiveDisplay').textContent = " (іменинники тижня)";
         }
         // ---------------------------------------------------------------

@@ -14,8 +14,6 @@ from weasyprint import HTML # Потрібно встановити: pip install
 
 import pdfkit
 
-import locale
-
 from functools import wraps
 from flask import abort
 
@@ -23,21 +21,7 @@ from flask import abort
 import logging
 from logging.handlers import RotatingFileHandler
 
-    
-    
-# Спробуємо встановити українську локаль (якщо вона є на сервері)
-try:
-    locale.setlocale(locale.LC_ALL, 'uk_UA.UTF-8')
-except:
-    pass
-
-  
-
 app = Flask(__name__)
-
-
-
-#app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__)) # Шлях до папки
 DB_PATH = os.path.join(BASE_DIR, 'database', '_grace.sqlite')
@@ -58,7 +42,7 @@ app.secret_key = 'super_secret_key_change_me' # Обов'язково зміні
 
 if not app.debug:
     # Шлях до файлу логів у вашій папці проекту
-    log_path = os.path.join(BASE_DIR, 'database', 'error.log')
+    log_path = os.path.join(BASE_DIR, 'error.log')
     
     file_handler = RotatingFileHandler(log_path, maxBytes=10240, backupCount=10)
     file_handler.setFormatter(logging.Formatter(
@@ -83,17 +67,29 @@ logging.basicConfig(
 logger = logging.getLogger('gracedb_debug')
 logger.debug(f"Дебаг")
 
+def ukrainian_collation(string1, string2):
+    # Специфічні символи для української мови
+    alphabet = " абвгґдеєжзиіїйклмнопрстуфхцчшщьюя"
+    
+    s1, s2 = string1.lower(), string2.lower()
+    
+    # Порівнюємо посимвольно
+    for char1, char2 in zip(s1, s2):
+        idx1 = alphabet.find(char1)
+        idx2 = alphabet.find(char2)
+        
+        if idx1 != idx2:
+            return 1 if idx1 > idx2 else -1
+    
+    return len(s1) - len(s2)
 
 def get_db_connection():
     conn = sqlite3.connect(DB_PATH)
-    
-    # Створюємо функцію для правильного порівняння українських рядків
-    conn.create_collation("UKRAINIAN", lambda a, b: locale.strcoll(a, b))
-    
-    conn.row_factory = sqlite3.Row # Дозволяє звертатися до колонок по іменах
+    # Реєструємо власну назву сортування 'UKRAINIAN_CUSTOM'
+    conn.create_collation("UKRAINIAN_CUSTOM", ukrainian_collation)
+    conn.row_factory = sqlite3.Row
     return conn
-
-
+    
 # --- АВТОРИЗАЦІЯ ---
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -167,7 +163,7 @@ def get_lists():
 @app.route('/api/people')
 @login_required
 def get_people():
-    logger.debug("--- Запит до /api/people розпочато ---")
+    logger.debug("--- Запит до /api/people_bd розпочато ---")
     # Додаємо сортування та ліміти
     try:
         logger.debug(f"Всі параметри запиту: {request.args.to_dict()}")
@@ -255,12 +251,13 @@ def get_people():
 
         
         # Додаємо сортування за днем народження (ігноруючи рік)
+        order_query = " ORDER BY name COLLATE UKRAINIAN_CUSTOM ASC LIMIT ? OFFSET ?"
         
-        #if birthday_week=='true':
-        #    order_query = " ORDER BY strftime('%m-%d', Date_of_Birth) ASC  LIMIT ? OFFSET ?"
+        if birthday_week=='true':
+            order_query = f" ORDER BY strftime('%m-%d', Date_of_Birth) ASC  LIMIT ? OFFSET ?"
             
 
-        final_query = query + " ORDER BY name COLLATE UKRAINIAN ASC LIMIT ? OFFSET ?"
+        final_query = query + order_query
         
         logger.debug(f"Запит final_query: {final_query}")
         
@@ -271,6 +268,11 @@ def get_people():
         print(f"DEBUG PARAMS: {params}", file=sys.stderr)
         
         final_params = params + [limit, offset]
+        
+        logger.debug(f"Запит final_params: {final_params}")
+        
+        print(f"DEBUG final_params: {final_params}", file=sys.stderr)
+        
          
         rows = conn.execute(final_query, final_params).fetchall()
         conn.close()
@@ -285,7 +287,7 @@ def get_people():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
         
-        
+       
 @app.route('/api/user/settings', methods=['GET', 'POST'])
 @login_required
 def user_settings():
