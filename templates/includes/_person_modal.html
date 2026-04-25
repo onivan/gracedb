@@ -1,0 +1,43 @@
+<div class="modal fade" id="personModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Редагування особи</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="personForm">
+            <input type="hidden" id="personId">
+            <div class="mb-3">
+                <label class="form-label">ПІБ</label>
+                <input type="text" class="form-control" id="nameInput" required>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Email</label>
+                <input type="email" class="form-control" id="emailInput">
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Стать</label>
+                <select class="form-select" id="genderSelect"></select>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Сімейний стан</label>
+                <select class="form-select" id="famStatusSelect"></select>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Церковний стан</label>
+                <select class="form-select" id="churchStatusSelect"></select>
+            </div>
+            <div class="mb-3 form-check">
+                <input type="checkbox" class="form-check-input" id="smsCheck">
+                <label class="form-check-label" for="smsCheck">Відправляти SMS (BD)</label>
+            </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрити</button>
+        <button type="button" class="btn btn-primary" onclick="savePerson()">Зберегти зміни</button>
+      </div>
+    </div>
+  </div>
+</div>

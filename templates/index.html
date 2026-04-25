@@ -1,0 +1,210 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+			<h2 class="h4">База людей</h2>
+			<div class="d-flex gap-2">
+				<button class="btn btn-outline-danger" 
+						data-bs-toggle="modal" 
+						data-bs-target="#exportPdfModal"
+						onclick="updatePdfPreview()"> 📄 Експорт в PDF
+				</button>
+                <button id="btn-birthday" class="btn btn-outline-info me-2" onclick="toggleBirthdayFilter()">
+                    🎂 Дні народження
+                </button>
+				<a href="/api/admin/db/download" class="btn btn-outline-secondary btn-sm">
+					📥 Скачати БД
+				</a>
+				
+				<button class="btn btn-outline-danger btn-sm" onclick="document.getElementById('dbInput').click()">
+					📤 Оновити БД
+				</button>
+				
+				<input type="file" id="dbInput" style="display: none;" accept=".sqlite" onchange="uploadDatabase(this)">
+			</div>
+
+			<div class="d-flex align-items-center">
+				<select id="limitSelect" class="form-select form-select-sm d-inline-block w-auto me-2">
+					<option value="5">5</option>
+					<option value="10">10</option>
+					<option value="20">20</option>
+					<option value="50">50</option>
+				</select>
+
+				<div class="dropdown me-2">
+					<button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+						⚙️ Колонки
+					</button>
+					<ul class="dropdown-menu dropdown-menu-end p-2" id="columnToggleMenu" style="min-width: 200px;">
+						</ul>
+				</div>
+
+				<button class="btn btn-primary btn-sm" onclick="openModal()">+ Додати особу</button>
+			</div>
+		</div>
+ 
+		<div class="card shadow-sm mb-4">
+			<div class="card-body">
+				<div class="d-flex justify-content-between align-items-center mb-3">
+					<h5 class="card-title h6 mb-0">🔍 Пошук
+					<span id="activeFiltersDisplay" class="text-primary ms-2" style="font-size: 0.85rem; font-weight: normal;"></span>
+                    <span id="birthdayFilterActiveDisplay" class="text-primary ms-2" style="font-size: 0.85rem; font-weight: normal;"></span>
+					<span id="resultsCount" class="badge bg-secondary ms-2" style="font-size: 0.75rem;"></span>
+					</h5>
+					<button class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#advancedFilterModal">
+						⚙️ Розширені фільтри
+					</button>
+				</div>
+				<div class="row g-2">
+					<div class="col-md-4">
+						<input type="text" id="f_name" class="form-control form-control-sm filter-input" placeholder="ПІБ (від 3-х симв.)...">
+					</div>
+					<div class="col-md-4">
+						<input type="text" id="f_phone" class="form-control form-control-sm filter-input" placeholder="Телефон...">
+					</div>
+					<div class="col-md-4">
+						<input type="text" id="f_address" class="form-control form-control-sm filter-input" placeholder="Адреса...">
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div class="modal fade" id="advancedFilterModal" tabindex="-1" aria-hidden="true">
+			<div class="modal-dialog">
+				<div class="modal-content">
+					<div class="modal-header">
+						<h5 class="modal-title">Розширені фільтри</h5>
+						<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+					</div>
+					<div class="modal-body">
+						<h6>Стать</h6>
+						<div id="genderCheckboxes" class="mb-3 d-flex gap-3 border-bottom pb-2">
+							</div>
+
+						<h6>Церковний статус</h6>
+						<div id="churchStatusCheckboxes" class="mb-3 border-bottom pb-2">
+							</div>
+
+						<h6>Сімейний стан</h6>
+						<div id="familyStatusCheckboxes" class="mb-3">
+							</div>
+					</div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-secondary btn-sm" onclick="clearFilters()">Скинути все</button>
+						<button type="button" class="btn btn-primary btn-sm" data-bs-dismiss="modal" onclick="applyFilters()">Застосувати</button>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div class="card shadow-sm">
+			<div class="table-responsive">
+				<table class="table table-hover mb-0" id="mainPeopleTable" style="font-size: 0.85rem;">
+					<thead class="table-light">
+						<tr id="tableHeader">
+							</tr>
+					</thead>
+					<tbody id="peopleTableBody">
+						</tbody>
+				</table>
+			</div>
+		</div>
+
+        <nav class="mt-3">
+            <ul class="pagination pagination-sm justify-content-center" id="paginationControls"></ul>
+        </nav>
+    </div>
+
+    <div class="col-md-4">
+        <div class="sticky-top" style="top: 20px;">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h5 id="photoSectionTitle" class="mb-0, h6">Фото</h5>
+                </div>
+                <div class="card-body">
+                    <div id="photosContainer" class="row g-2 mb-3">
+                        <p class="text-muted small text-center">Виберіть особу для перегляду</p>
+                    </div>
+
+                    <div id="photoActions" class="d-none border-top pt-3">
+                        <input type="file" id="photoInput" style="display: none;" accept="image/*" onchange="uploadPhoto()">
+                        
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-outline-success btn-sm" onclick="document.getElementById('photoInput').click()">
+                                📸 Додати нове фото
+                            </button>
+                            <p class="text-muted text-center" style="font-size: 0.7rem;">
+                                Щоб замінити, видаліть старе та додайте нове
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+{% include 'includes/_person_modal.html' %}
+
+<div class="modal fade" id="exportPdfModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Експорт у PDF</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-5 border-end">
+                        <h6>Налаштування вигляду</h6>
+                        <label class="form-label small text-muted">Розмір фотографії:</label>
+                        <select id="pdfPhotoSize" class="form-select mb-4" onchange="updatePdfPreview()">
+                            <option value="small">Маленький (20х25 мм)</option>
+                            <option value="medium" selected>Середній (30x35 мм)</option>
+                            <option value="large">Великий (45x55 мм)</option>
+                        </select>
+                        <div class="alert alert-info small">
+                            Звіт буде сформовано згідно з вашими поточними фільтрами.
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-7">
+                        <h6 class="text-center mb-3">Попередній перегляд однієї картки</h6>
+                        <div class="d-flex justify-content-center">
+                            <div id="pdfPreviewContainer" style="background: #f8f9fa; padding: 20px; border: 1px dashed #ccc; width: 100%;">
+                                </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Скасувати</button>
+                <button type="button" class="btn btn-danger" onclick="runServerExport()">Згенерувати PDF</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- <div id="pdf-export-container" style="display: none;">
+    <div id="pdf-template" style="padding: 15mm; background: white; color: black; width: 190mm;">
+        <div style="text-align: center; border-bottom: 2px solid #333; margin-bottom: 20px; padding-bottom: 10px;">
+            <h2 style="margin: 0;">Звіт: Церква Благодать</h2>
+            <p id="pdf-meta-info" style="margin: 5px 0 0 0; font-size: 12px;"></p>
+        </div>
+        <div id="pdf-people-list" style="display: flex; flex-wrap: wrap; gap: 10px;">
+            </div>
+    </div>
+</div>
+-->
+
+{% endblock %}
+
+{% block scripts %}
+<!--
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+-->
+
+{% endblock %}

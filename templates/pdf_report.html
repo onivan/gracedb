@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        /* Налаштування сторінки */
+        @page { size: A4; margin: 1cm; }
+        body { 
+            font-family: 'DejaVu Sans', sans-serif; 
+            font-size: {{ pdf_style.font }}; /* Динамічний шрифт */
+            line-height: 1.2;
+        }
+
+        /* Заголовок звіту */
+        .header { 
+            text-align: center; 
+            border-bottom: 2px solid #333; 
+            margin-bottom: 20px; 
+            padding-bottom: 10px; 
+        }
+        .header h1 { margin: 0 0 5px 0; font-size: 16pt; }
+        .filter-line { 
+            font-size: 10pt; 
+            color: #555; 
+            font-style: italic; 
+            margin-bottom: 5px;
+        }
+        .meta-line { font-size: 9pt; color: #777; }
+
+        /* Сітка карток */
+        .container { width: 100%; }
+        
+        .card {
+            width: 48%; 
+            border: 1px solid #ccc;
+            margin-bottom: 15px;
+            padding: 10px;
+            display: inline-block;
+            vertical-align: top;
+            min-height: {{ pdf_style.card_h }}; /* Динамічна висота */
+            box-sizing: border-box;
+            page-break-inside: avoid; /* Щоб картку не розривало між сторінками */
+        }
+
+        /* Фотографія */
+        .photo-side { 
+            float: left; 
+            width: {{ pdf_style.img_w }}; 
+        }
+        .photo-side img { 
+            width: {{ pdf_style.img_w }}; 
+            height: {{ pdf_style.img_h }}; 
+            object-fit: cover; 
+            border: 1px solid #eee; 
+        }
+        .no-photo { 
+            width: {{ pdf_style.img_w }}; 
+            height: {{ pdf_style.img_h }}; 
+            background: #f0f0f0; 
+            display: block; 
+        }
+
+        /* Інформація */
+        .info-side { 
+            /* Відступ залежить від ширини фото + невеликий запас */
+            margin-left: calc({{ pdf_style.img_w }} + 10px); 
+        }
+        .name { 
+            font-weight: bold; 
+            font-size: calc({{ pdf_style.font }} + 1pt); 
+            color: #0056b3; 
+            margin-bottom: 5px; 
+        }
+        .field { margin-bottom: 2px; font-size: calc({{ pdf_style.font }} - 1pt); }
+        .label { color: #666; font-style: italic; }
+        
+        .note { 
+            font-size: 8pt; 
+            color: #555; 
+            margin-top: 5px; 
+            border-top: 1px dashed #eee; 
+            padding-top: 3px;
+        }
+        .clear { clear: both; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Список членів церкви Благодать</h1>
+        <div class="filter-line">{{ header_filters }}</div>
+        <div class="meta-line">Дата звіту: {{ today }} | Всього осіб: {{ total }}</div>
+    </div>
+
+    <div class="container">
+        {% for p in people %}
+            <div class="card">
+                <div class="photo-side">
+                    {% if p.photo_b64 %}
+                        <img src="data:image/jpeg;base64,{{ p.photo_b64 }}">
+                    {% else %}
+                        <div class="no-photo"></div>
+                    {% endif %}
+                </div>
+                <div class="info-side">
+                    <div class="name">{{ p.name }}</div>
+                    <div class="field"><span class="label">Адреса:</span> {{ p.address or '-' }}</div>
+                    <div class="field"><span class="label">Дн:</span> {{ p.Date_of_Birth or '-' }}</div>
+                    <div class="field"><span class="label">Дх:</span> {{ p.Date_of_Bapt or '-' }}</div>
+                    <div class="field"><span class="label">Тел:</span> {{ p.Mobile_Phone or '-' }}</div>
+                    <div class="field"><span class="label">Сім.:</span> {{ p.family_text or '-' }}</div>
+                    <div class="field"><span class="label">Ц.:</span> {{ p.church_text or '-' }}</div>
+                    
+                    
+                    {% if p.notes %}
+                        <div class="note">{{ p.notes }}</div>
+                    {% endif %}
+                </div>
+                <div class="clear"></div>
+            </div>
+            
+            {# Очищення потоку кожні 2 картки для стабільності сітки #}
+            {% if loop.index % 2 == 0 %}<div style="clear: both;"></div>{% endif %}
+        {% endfor %}
+    </div>
+</body>
+</html>
