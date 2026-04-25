@@ -6,7 +6,7 @@ let birthdayFilterActive = false;
 const USER_ROLE = document.body.dataset.userRole || 'viewer';
 
 // Початкова конфігурація колонок
-let columnConfig = {
+let columnConfigOld = {
     id: { title: 'ID', visible: true },
     name: { title: "Ім'я", visible: true },
     Mobile_Phone: { title: 'Мобільний', visible: true },
@@ -16,8 +16,25 @@ let columnConfig = {
     address: { title: 'Адреса', visible: false },
     church_status: { title: 'Статус', visible: true },
     send_bd_sms: { title: 'SMS', visible: true },
+    children: { title: 'Діти', visible: true },
     actions: { title: 'Дії', visible: true }
 };
+
+// Початкова конфігурація колонок
+let columnConfig = {
+    id: { title: 'ID', visible: true },
+    name: { title: "Ім'я", visible: true },
+    phones: { title: 'Телефони', visible: true }, // Об'єднана колонка
+    Date_of_Birth: { title: 'Дн', visible: true },
+    Date_of_Bapt: { title: 'Хрещення', visible: true },
+    email: { title: 'Email', visible: false },
+    address: { title: 'Адреса', visible: false },
+    church_status: { title: 'Статус', visible: true },
+    children: { title: 'Діти', visible: true },
+    send_bd_sms: { title: 'SMS', visible: false },
+    actions: { title: 'Дії', visible: true }
+};
+
 
 // Завантаження налаштувань з пам'яті браузера
 function loadSettings() {
@@ -48,31 +65,7 @@ function initColumnMenu() {
     });
 }
 
-function toggleColumn(key, isVisible) {
-    columnConfig[key].visible = isVisible;
-    localStorage.setItem('grace_columns', JSON.stringify(
-        Object.keys(columnConfig).reduce((acc, k) => ({...acc, [k]: columnConfig[k].visible}), {})
-    ));
-    // Перемальовуємо все
-    renderTableStructure();
-}
 
-function renderTableStructure() {
-    const header = document.getElementById('tableHeader');
-    header.innerHTML = '';
-    
-    // Малюємо заголовки
-    Object.keys(columnConfig).forEach(key => {
-        if (columnConfig[key].visible) {
-            header.innerHTML += `<th>${columnConfig[key].title}</th>`;
-        }
-    });
-    
-    // Якщо дані вже є в пам'яті (cached), перемальовуємо рядки
-    if (window.currentPeopleData) {
-        renderPeople(window.currentPeopleData);
-    }
-}
 
 // Функція для отримання текстового значення з довідників
 function translateStatus(listName, id) {
@@ -96,7 +89,107 @@ function translateStatus(listName, id) {
 
 
 // ОСНОВНА ФУНКЦІЯ ВИВОДУ ДАНИХ
+// 1. Оновлена функція перемикання колонок
+function toggleColumn(key, isVisible) {
+    columnConfig[key].visible = isVisible;
+    
+    // Зберігаємо налаштування в браузері
+    localStorage.setItem('grace_columns', JSON.stringify(
+        Object.keys(columnConfig).reduce((acc, k) => ({...acc, [k]: columnConfig[k].visible}), {})
+    ));
+
+    // Якщо дані завантажені, просто перемальовуємо їх
+    if (window.currentPeopleData) {
+        renderPeople(window.currentPeopleData);
+    } else {
+        loadPeople();
+    }
+}
+
+// 2. Функція рендерингу заголовків
+function renderHeaders() {
+    // Згідно з вашим index.html рядок має id="tableHeader"
+    const theadRow = document.getElementById('tableHeader');
+    if (!theadRow) return;
+
+    theadRow.innerHTML = '';
+    Object.keys(columnConfig).forEach(key => {
+        if (columnConfig[key].visible) {
+            const th = document.createElement('th');
+            th.textContent = columnConfig[key].title;
+            theadRow.appendChild(th);
+        }
+    });
+}
+
+// 3. ЄДИНА правильна функція рендерингу таблиці
 function renderPeople(people) {
+    // ВАЖЛИВО: Кешуємо дані, щоб toggleColumn міг їх перемалювати без запиту на сервер
+    window.currentPeopleData = people; 
+
+    const tbody = document.querySelector('#mainPeopleTable tbody');
+    if (!tbody) return;
+
+    // Оновлюємо заголовки перед малюванням рядків, щоб вони збігалися
+    renderHeaders();
+
+    tbody.innerHTML = '';
+    people.forEach(person => {
+        const tr = document.createElement('tr');
+        
+        // Повертаємо підсвітку рядка та завантаження фото по кліку
+        tr.onclick = () => {
+            document.querySelectorAll('tr').forEach(r => r.classList.remove('table-active-row'));
+            tr.classList.add('table-active-row');
+            if (typeof loadPhotos === 'function') loadPhotos(person.id, person.name);
+        };
+
+        Object.keys(columnConfig).forEach(key => {
+            if (!columnConfig[key].visible) return;
+
+            const td = document.createElement('td');
+
+            if (key === 'phones') {
+                const phoneFields = ['Mobile_Phone', 'Home_phone', 'Work_phone', 'Mobile_Phone_a'];
+                const formatted = phoneFields
+                    .map(f => person[f])
+                    .filter(v => v && v !== 0 && v !== '0' && v !== '')
+                    .map(v => formatPhoneNumber(v));
+                td.innerHTML = formatted.join('<br>');
+            } 
+            else if (key === 'send_bd_sms') {
+                td.style.textAlign = 'center';
+                // Перевіряємо на 1, '1' або true
+                td.textContent = (person[key] == 'Y' || person[key] == 1 || person[key] === true) ? '✅' : '❌';
+            }
+            else if (key === 'Date_of_Birth' || key === 'Date_of_Bapt') {
+                const d = person[key];
+                td.textContent = (d && !d.includes('1900')) ? d : '-';
+            }
+            else if (key === 'church_status') {
+                const statusObj = lookupLists.church_status?.find(s => s.id == person[key]);
+                td.textContent = statusObj ? statusObj.list_name : (person[key] || '');
+            }
+            else if (key === 'actions') {
+                // Додано event для зупинки поширення кліку (щоб не відкривалося фото при кліку на кнопки)
+                td.innerHTML = `
+                    <div class="btn-group">
+                        <button class="btn btn-sm btn-outline-primary" onclick="openModal(${person.id}, event)">✎</button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="deletePerson(${person.id}, event)">🗑</button>
+                    </div>`;
+            }
+            else {
+                td.textContent = person[key] || '';
+            }
+            
+            tr.appendChild(td);
+        });
+        
+        tbody.appendChild(tr);
+    });
+}
+
+function renderPeople_old(people) {
     window.currentPeopleData = people; // Кешуємо для перемикання колонок
     const tbody = document.getElementById('peopleTableBody');
     tbody.innerHTML = '';
@@ -114,9 +207,9 @@ function renderPeople(people) {
         
         if (columnConfig.id.visible) rowContent += `<td>${person.id}</td>`;
         if (columnConfig.name.visible) rowContent += `<td class="fw-bold">${person.name}</td>`;
-        if (columnConfig.Mobile_Phone.visible) rowContent += `<td>${person.Mobile_Phone || ''}</td>`;
-        if (columnConfig.Home_phone.visible) rowContent += `<td>${person.Home_phone || ''}</td>`;
-        if (columnConfig.Work_phone.visible) rowContent += `<td>${person.Work_phone || ''}</td>`;
+        if (columnConfig.Mobile_Phone.visible) rowContent += `<td>${formatPhoneNumber(person.Mobile_Phone) || ''}</td>`;
+        if (columnConfig.Home_phone.visible) rowContent += `<td>${formatPhoneNumber(person.Home_phone) || ''}</td>`;
+        if (columnConfig.Work_phone.visible) rowContent += `<td>${formatPhoneNumber(person.Work_phone) || ''}</td>`;
         if (columnConfig.email.visible) rowContent += `<td>${person.email || ''}</td>`;
         if (columnConfig.address.visible) rowContent += `<td><small>${person.address || ''}</small></td>`;
         
@@ -170,7 +263,7 @@ document.addEventListener('DOMContentLoaded', () => {
 document.addEventListener('DOMContentLoaded', async () => {
     loadSettings();
     initColumnMenu();
-    renderTableStructure();
+    //renderHeaders();
     await fetchLists();
     renderFilterCheckboxes();
     loadSavedFilters();
@@ -378,7 +471,9 @@ async function loadPeople() {
         // Якщо активовано дні народження, можна змінити заголовок над списком
         if (birthdayFilterActive) {
             countDisplay.innerText += " (іменинники тижня)";
-            document.getElementById('birthdayFilterActiveDisplay').textContent = " (іменинники тижня)";
+            //document.getElementById('birthdayFilterActiveDisplay').textContent = " (іменинники тижня)";
+        } else {
+            //document.getElementById('birthdayFilterActiveDisplay').textContent = "";
         }
         // ---------------------------------------------------------------
         if (result && result.data) {
@@ -780,7 +875,11 @@ async function openModal(id = null, event = null) {
                 document.getElementById('emailInput').value = person.email || '';
                 document.getElementById('genderSelect').value = person.gender || 0;
                 document.getElementById('famStatusSelect').value = person.fam_status || 0;
-                document.getElementById('smsCheck').checked = person.send_bd_sms === 1;
+                //(person[key] == 'Y' || person[key] == 1 || person[key] === true)
+                if (person.send_bd_sms == 1 || person.send_bd_sms == 'Y' || person.send_bd_sms === true) {
+                    document.getElementById('smsCheck').checked = true;
+                }
+                //document.getElementById('smsCheck').checked = (person.send_bd_sms === 1);
                 
                 // Якщо є church_status у модалці:
                 const churchStatus = document.getElementById('churchStatusSelect');
@@ -1008,3 +1107,32 @@ function toggleBirthdayFilter() {
     loadPeople();
 }
 
+// Форматування ТФ
+function formatPhoneNumber(phone) {
+    if (!phone) return "";
+    
+    // Перетворюємо в рядок і залишаємо лише цифри
+    let digits = phone.toString().replace(/\D/g, '');
+
+    // Якщо номер має 12 цифр і починається на 380... — прибираємо 38 (залишаємо 0...)
+    if (digits.length === 12 && digits.startsWith('380')) {
+        digits = digits.substring(2);
+    } 
+    // Якщо номер має 11 цифр і починається на 80... — прибираємо 8
+    else if (digits.length === 11 && digits.startsWith('80')) {
+        digits = digits.substring(1);
+    }
+    // Якщо номер має 9 цифр (наприклад, 977044770) — додаємо 0 попереду
+    else if (digits.length === 9) {
+        digits = '0' + digits;
+    }
+
+    // Форматування
+    if (digits.length === 10) { // Мобільний: 097-704-47-70
+        return digits.replace(/(\d{3})(\d{3})(\d{2})(\d{2})/, '$1-$2-$3-$4');
+    } else if (digits.length === 6) { // Міський: 65-20-20
+        return digits.replace(/(\d{2})(\d{2})(\d{2})/, '$1-$2-$3');
+    }
+
+    return phone; // Якщо не підпадає під шаблони, повертаємо як було
+}

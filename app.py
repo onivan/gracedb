@@ -550,7 +550,7 @@ def export_pdf():
     conn = get_db_connection()
     # Запит з урахуванням фільтрів та сортуванням (Українська локаль)
     query = f'''
-        SELECT p.*, 
+        SELECT DISTINCT p.*, 
                fl.list_name as family_text,
                ch.list_name as church_text,
                ph.photo
@@ -567,9 +567,29 @@ def export_pdf():
     people_data = []
     for row in rows:
         item = dict(row)
+        
+        # 1. Збираємо всі наявні номери в один список
+        phone_fields = ['Mobile_Phone', 'Home_phone', 'Work_phone', 'Mobile_Phone_a']
+        formatted_phones = []
+        
+        for field in phone_fields:
+            val = item.get(field)
+            if val:
+                formatted = format_phone_py(val)
+                if formatted:
+                    formatted_phones.append(formatted)
+        
+        # 2. Об'єднуємо їх через кому для виводу в PDF
+        # Створюємо новий ключ 'phones_display', який ви використаєте в HTML-шаблоні
+        item['phones_display'] = ", ".join(formatted_phones)                
+        
         if item['photo']:
             item['photo_b64'] = base64.b64encode(item['photo']).decode('utf-8')
         people_data.append(item)
+
+    print(f"Кількість людей для PDF: {len(people_data)}")
+    #for p in people_data:
+    #    print(f"ID: {p['id']}, Name: {p['name']}")
 
     # 3. Рендеринг шаблону з новими змінними
     html_out = render_template('pdf_report.html', 
@@ -613,6 +633,29 @@ def role_required(*roles):
         return decorated_view
     return wrapper
 
+
+def format_phone_py(phone):
+    if not phone: return ""
     
+    # Залишаємо тільки цифри
+    digits = "".join(filter(str.isdigit, str(phone)))
+
+    # Нормалізація до формату 097... (10 цифр)
+    if len(digits) == 12 and digits.startswith('380'):
+        digits = digits[2:]
+    elif len(digits) == 11 and digits.startswith('80'):
+        digits = digits[1:]
+    elif len(digits) == 9:
+        digits = '0' + digits
+
+    # Форматування мобільного
+    if len(digits) == 10:
+        return f"{digits[:3]}-{digits[3:6]}-{digits[6:8]}-{digits[8:]}"
+    # Форматування міського
+    elif len(digits) == 6:
+        return f"{digits[:2]}-{digits[2:4]}-{digits[4:]}"
+    
+    return str(phone)    
+        
 if __name__ == '__main__':
     app.run(debug=True)
