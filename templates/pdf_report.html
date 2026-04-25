@@ -107,12 +107,13 @@
                     <div class="field"><span class="label">Дн:</span> {{ p.Date_of_Birth or '-' }}</div>
                     <div class="field"><span class="label">Дх:</span> {{ p.Date_of_Bapt or '-' }}</div>
                     <div class="field"><span class="label">Тел:</span> {{ p.phones_display or '-' }}</div>
-                    <div class="field"><span class="label">Сім.:</span> {{ p.family_text or '-' }}</div>
-                    <div class="field"><span class="label">Ц.:</span> {{ p.church_text or '-' }}</div>
+                    <div class="field"><span class="label">Сім.стан:</span> {{ p.family_text or '-' }}</div>
+                    <div class="field"><span class="label">Діти:</span> {{ p.children or '-' }}</div>
+                    <div class="field"><span class="label">Ц.статус:</span> {{ p.church_text or '-' }}</div>
                     
                     
                     {% if p.notes %}
-                        <div class="note">{{ p.notes }}</div>
+                        <div class="note">{{ p.notes or ''}}</div>
                     {% endif %}
                 </div>
                 <div class="clear"></div>

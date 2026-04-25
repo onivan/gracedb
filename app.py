@@ -582,7 +582,10 @@ def export_pdf():
         # 2. Об'єднуємо їх через кому для виводу в PDF
         # Створюємо новий ключ 'phones_display', який ви використаєте в HTML-шаблоні
         item['phones_display'] = ", ".join(formatted_phones)                
-        
+        if item['notes']:
+            if  len(item['notes']) < 2:
+                 item['notes'] = ''
+                 
         if item['photo']:
             item['photo_b64'] = base64.b64encode(item['photo']).decode('utf-8')
         people_data.append(item)
