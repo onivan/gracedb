@@ -67,6 +67,35 @@ logging.basicConfig(
 logger = logging.getLogger('gracedb_debug')
 logger.debug(f"Дебаг")
 
+import subprocess
+
+def get_build_number():
+    try:
+        with open(os.path.join(BASE_DIR, 'version.txt'), 'r') as f:
+            return f.read().strip()
+    except:
+        return "0"
+        
+def get_build_number_n():
+    try:
+        # Отримуємо кількість комітів у гілці main
+        build = subprocess.check_output(['git', 'rev-list', '--count', 'HEAD']).decode('utf-8').strip()
+        # Отримуємо короткий хеш останнього коміту (опціонально)
+        short_hash = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD']).decode('utf-8').strip()
+        return f"b{build} ({short_hash})"
+    except Exception:
+        return "dev"
+
+
+# В app.py поза функціями
+BUILD_NUMBER = get_build_number()
+
+# Додаємо це в контекст шаблонів, щоб версія була доступна скрізь
+@app.context_processor
+def inject_build():
+    return dict(build_number=get_build_number())
+    
+    
 def ukrainian_collation(string1, string2):
     # Специфічні символи для української мови
     alphabet = " абвгґдеєжзиіїйклмнопрстуфхцчшщьюя"
@@ -583,6 +612,7 @@ def role_required(*roles):
             return fn(*args, **kwargs)
         return decorated_view
     return wrapper
+
     
 if __name__ == '__main__':
     app.run(debug=True)
