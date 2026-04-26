@@ -74,33 +74,7 @@
                 </div>
             </div>
 
-            <div class="modal fade" id="advancedFilterModal" tabindex="-1" aria-hidden="true">
-                <div class="modal-dialog">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h5 class="modal-title">Розширені фільтри</h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                        </div>
-                        <div class="modal-body">
-                            <h6>Стать</h6>
-                            <div id="genderCheckboxes" class="mb-3 d-flex gap-3 border-bottom pb-2">
-                                </div>
-
-                            <h6>Церковний статус</h6>
-                            <div id="churchStatusCheckboxes" class="mb-3 border-bottom pb-2">
-                                </div>
-
-                            <h6>Сімейний стан</h6>
-                            <div id="familyStatusCheckboxes" class="mb-3">
-                                </div>
-                        </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary btn-sm" onclick="clearFilters()">Скинути все</button>
-                            <button type="button" class="btn btn-primary btn-sm" data-bs-dismiss="modal" onclick="applyFilters()">Застосувати</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
+            
         </div>
 		<div class="card shadow-sm">
 			<div class="table-responsive">
@@ -150,46 +124,7 @@
 </div>
 
 
-{% include 'includes/_person_modal.html' %}
 
-<div class="modal fade" id="exportPdfModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Експорт у PDF</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <div class="row">
-                    <div class="col-md-5 border-end">
-                        <h6>Налаштування вигляду</h6>
-                        <label class="form-label small text-muted">Розмір фотографії:</label>
-                        <select id="pdfPhotoSize" class="form-select mb-4" onchange="updatePdfPreview()">
-                            <option value="small">Маленький (20х25 мм)</option>
-                            <option value="medium" selected>Середній (30x35 мм)</option>
-                            <option value="large">Великий (45x55 мм)</option>
-                        </select>
-                        <div class="alert alert-info small">
-                            Звіт буде сформовано згідно з вашими поточними фільтрами.
-                        </div>
-                    </div>
-                    
-                    <div class="col-md-7">
-                        <h6 class="text-center mb-3">Попередній перегляд однієї картки</h6>
-                        <div class="d-flex justify-content-center">
-                            <div id="pdfPreviewContainer" style="background: #f8f9fa; padding: 20px; border: 1px dashed #ccc; width: 100%;">
-                                </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Скасувати</button>
-                <button type="button" class="btn btn-danger" onclick="runServerExport()">Згенерувати PDF</button>
-            </div>
-        </div>
-    </div>
-</div>
 
 <!-- <div id="pdf-export-container" style="display: none;">
     <div id="pdf-template" style="padding: 15mm; background: white; color: black; width: 190mm;">
@@ -202,6 +137,79 @@
     </div>
 </div>
 -->
+
+{% endblock %}
+
+{% block modals %}
+    <div class="modal fade" id="advancedFilterModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Розширені фільтри</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <h6>Стать</h6>
+                    <div id="genderCheckboxes" class="mb-3 d-flex gap-3 border-bottom pb-2">
+                        </div>
+
+                    <h6>Церковний статус</h6>
+                    <div id="churchStatusCheckboxes" class="mb-3 border-bottom pb-2">
+                        </div>
+
+                    <h6>Сімейний стан</h6>
+                    <div id="familyStatusCheckboxes" class="mb-3">
+                        </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="clearFilters()">Скинути все</button>
+                    <button type="button" class="btn btn-primary btn-sm" data-bs-dismiss="modal" onclick="applyFilters()">Застосувати</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    
+    <div class="modal fade" id="exportPdfModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Експорт у PDF</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-5 border-end">
+                            <h6>Налаштування вигляду</h6>
+                            <label class="form-label small text-muted">Розмір фотографії:</label>
+                            <select id="pdfPhotoSize" class="form-select mb-4" onchange="updatePdfPreview()">
+                                <option value="small">Маленький (20х25 мм)</option>
+                                <option value="medium" selected>Середній (30x35 мм)</option>
+                                <option value="large">Великий (45x55 мм)</option>
+                            </select>
+                            <div class="alert alert-info small">
+                                Звіт буде сформовано згідно з вашими поточними фільтрами.
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-7">
+                            <h6 class="text-center mb-3">Попередній перегляд однієї картки</h6>
+                            <div class="d-flex justify-content-center">
+                                <div id="pdfPreviewContainer" style="background: #f8f9fa; padding: 20px; border: 1px dashed #ccc; width: 100%;">
+                                    </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Скасувати</button>
+                    <button type="button" class="btn btn-danger" onclick="runServerExport()">Згенерувати PDF</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% include 'includes/_person_modal.html' %}
 
 {% endblock %}
 
