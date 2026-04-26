@@ -198,7 +198,8 @@ function renderPeople(people) {
             }
             else if (key === 'Date_of_Birth' || key === 'Date_of_Bapt') {
                 const d = person[key];
-                td.textContent = (d && !d.includes('1900')) ? d : '-';
+                const dateStr = d ? String(d) : ""; // Гарантуємо, що це рядок
+                td.textContent = (dateStr && !dateStr.includes('1900')) ? dateStr : '-';
             }
             else if (key === 'church_status') {
                 const statusObj = lookupLists.church_status?.find(s => s.id == person[key]);
@@ -743,6 +744,8 @@ async function uploadPhoto() {
         if (response.ok) {
             const personName = document.getElementById('photoSectionTitle').innerText.replace('Фото: ', '');
             loadPhotos(currentSelectedPersonId, personName);
+            loadPeople();
+            
         }
     } catch (err) {
         console.error(err);
@@ -777,6 +780,7 @@ async function deletePhoto(photoId) {
             const personName = document.getElementById('photoSectionTitle').innerText.replace('Фото: ', '');
             // Перезавантажуємо блок фото (currentSelectedPersonId має бути глобальною змінною)
             loadPhotos(currentSelectedPersonId, personName);
+            loadPeople();
         } else {
             alert("Помилка видалення: " + (result.error || "Невідома помилка"));
         }
@@ -835,9 +839,16 @@ async function openModal(id = null, event = null) {
         try {
             const person = await apiRequest(SCRIPT_ROOT + `/api/people/${id}`);
             if (person) {
+                console.log("openModal person:"); console.log(person);
                 // Заповнюємо поля (ID елементів мають збігатися з id у HTML)
                 document.getElementById('personId').value = person.id;
                 document.getElementById('nameInput').value = person.name || '';
+                document.getElementById('addressInput').value = person.address || '';
+                document.getElementById('dobInput').value = person.Date_of_Birth || '';
+                document.getElementById('baptInput').value = person.Date_of_Bapt || '';
+                document.getElementById('childrenInput').value = person.children || 0;
+                document.getElementById('notesInput').value = person.notes || '';
+                
                 document.getElementById('emailInput').value = person.email || '';
                 document.getElementById('genderSelect').value = person.gender || 0;
                 document.getElementById('famStatusSelect').value = person.fam_status || 0;
@@ -865,16 +876,37 @@ async function openModal(id = null, event = null) {
     modalInstance.show();
 }
 
+function openAddModal() {
+    // Очищаємо форму від попередніх даних
+    const form = document.getElementById('personForm');
+    if (form) form.reset();
+    
+    // Обов'язково очищаємо приховане поле ID
+    const idInput = document.getElementById('personId');
+    if (idInput) idInput.value = '';
+
+    // Показуємо модальне вікно
+    const modalElement = document.getElementById('personModal');
+    const modalInstance = bootstrap.Modal.getOrCreateInstance(modalElement);
+    modalInstance.show();
+}
+
 async function savePerson() {
     const id = document.getElementById('personId').value;
     
     // Збираємо дані з полів форми
     const personData = {
+        id: document.getElementById('personId').value || null,
         name: document.getElementById('nameInput').value,
+        address: document.getElementById('addressInput').value,
         email: document.getElementById('emailInput').value,
+        Date_of_Birth: document.getElementById('dobInput').value,
+        Date_of_Bapt: document.getElementById('baptInput').value,
         gender: document.getElementById('genderSelect').value,
         fam_status: document.getElementById('famStatusSelect').value,
         church_status: document.getElementById('churchStatusSelect').value,
+        children: document.getElementById('childrenInput').value || 0,
+        notes: document.getElementById('notesInput').value,
         send_bd_sms: document.getElementById('smsCheck').checked ? 1 : 0
     };
 
@@ -888,9 +920,9 @@ async function savePerson() {
         toggleLoader(true);
         
         // Якщо ID є — це редагування (PUT), якщо немає — створення (POST)
-        const method = id ? 'PUT' : 'POST';
-        const url = id ? SCRIPT_ROOT + `/api/people/${id}` : SCRIPT_ROOT + '/api/people';
-
+        const method = id ? 'POST' : 'POST';
+        const url = id ? SCRIPT_ROOT + '/api/person' : SCRIPT_ROOT + '/api/person';
+        console.log(personData);
         const response = await fetch(url, {
             method: method,
             headers: {

@@ -161,6 +161,23 @@ def login_required(f):
     wrap.__name__ = f.__name__
     return wrap
 
+# Декоратор для перевірки ролей (має бути вище за маршрути!)
+def role_required(*roles):
+    def wrapper(fn):
+        @wraps(fn)
+        def decorated_view(*args, **kwargs):
+            # Перевірка, чи користувач залогінений та чи має він потрібну роль
+            user = session.get('user')
+            if not user or user.get('role') not in roles:
+                return jsonify({
+                    "success": False, 
+                    "message": "У вас недостатньо прав для цієї операції"
+                }), 403
+            return fn(*args, **kwargs)
+        return decorated_view
+    return wrapper
+    
+    
 # --- ГОЛОВНА СТОРІНКА ---
 @app.route('/')
 def index():
@@ -356,6 +373,7 @@ def update_person(person_id):
     name = data.get('name')
     email = data.get('email')
     gender = data.get('gender')
+    church_status = data.get('church_status')
     fam_status = data.get('fam_status')
     send_bd_sms = data.get('send_bd_sms')
 
@@ -363,9 +381,9 @@ def update_person(person_id):
         conn = get_db_connection()
         conn.execute('''
             UPDATE people 
-            SET name = ?, email = ?, gender = ?, fam_status = ?, send_bd_sms = ?
+            SET name = ?, email = ?, gender = ?, church_status = ?, fam_status = ?, send_bd_sms = ?
             WHERE id = ?
-        ''', (name, email, gender, fam_status, send_bd_sms, person_id))
+        ''', (name, email, gender, church_status, fam_status, send_bd_sms, person_id))
         
         conn.commit()
         conn.close()
@@ -375,7 +393,68 @@ def update_person(person_id):
         return jsonify({'success': False, 'error': str(e)}), 500
         
         
+@app.route('/api/person', methods=['POST'])
+#@role_required('editor', 'admin')  # Тільки для користувачів з правами редагування
+def save_person():
+    data = request.json
+    p_id = data.get('id')
     
+    message = "Операція успішна"
+    
+    # Словник полів для зручності
+    fields = (
+        data.get('name', '').strip(),
+        data.get('address', '').strip(),
+        data.get('email', '').strip(),
+        data.get('Date_of_Birth') or '1900-01-01',
+        data.get('Date_of_Bapt') or '1900-01-01',
+        data.get('gender', 0),
+        data.get('fam_status', 0),
+        data.get('church_status', 0),
+        data.get('children', 0),
+        data.get('notes', '').strip(),
+        data.get('send_bd_sms', 1)
+    )
+    
+    # Базова валідація
+    if not data.get('name', '').strip():
+        return jsonify({"success": False, "message": "Ім'я обов'язкове"}), 400
+        
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    try:
+        if p_id:
+            # UPDATE
+            query = """
+                UPDATE people SET 
+                name=?, address=?, email=?, Date_of_Birth=?, Date_of_Bapt=?, 
+                gender=?, fam_status=?, church_status=?, children=?, notes=?, send_bd_sms=?
+                WHERE id=?
+            """
+            cursor.execute(query, fields + (p_id,))
+        else:
+            # INSERT
+            query = """
+                INSERT INTO people (
+                    name, address, email, Date_of_Birth, Date_of_Bapt, 
+                    gender, fam_status, church_status, children, notes, send_bd_sms
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """
+            cursor.execute(query, fields)
+    
+            message = "Людину успішно додано до бази"
+
+        conn.commit()
+        return jsonify({"success": True, "message": message})
+    
+    except Exception as e:
+        conn.rollback()
+        print(f"Помилка бази даних: {str(e)}") # Для логів сервера
+        return jsonify({"success": False, "message": f"Помилка бази даних: {str(e)}, " + query }), 500
+    finally:
+        conn.close()
+        
+            
 # --- API ДЛЯ ФОТО (BLOB) ---
 @app.route('/api/photos/<int:people_id>', methods=['GET'])
 @login_required
@@ -514,15 +593,17 @@ import io
 
 # Допоміжна функція для побудови SQL на основі фільтрів
 def build_filter_query(args):
+    text_filters = []
     filters = []
     params = []
     
+            
     # Текстові фільтри
-    mapping = {'name': 'p.name', 'phone': 'p.Mobile_Phone', 'address': 'p.address'}
+    mapping = {'name': 'p.name', 'mphone': 'p.Mobile_Phone', 'mphone2': 'p.Mobile_Phone_a', 'hphone': 'p.Home_phone','wphone': 'p.Work_phone','address': 'p.address','notes': 'p.notes'}
     for key, column in mapping.items():
-        val = args.get(key)
+        val = args.get('searchInput')
         if val:
-            filters.append(f"{column} LIKE ?")
+            text_filters.append(f"{column} LIKE ?")
             params.append(f"%{val}%")
             
     # Фільтри-списки (через чекбокси)
@@ -537,9 +618,9 @@ def build_filter_query(args):
             placeholders = ','.join(['?'] * len(ids))
             filters.append(f"{column} IN ({placeholders})")
             params.extend(ids)
-            
+    text_filters_sql = " OR ".join(text_filters) if text_filters else "1=1"        
     filter_sql = " AND ".join(filters) if filters else "1=1"
-    return filter_sql, params
+    return " (" + text_filters_sql + ") AND " + filter_sql, params
 
 import base64
 import io
@@ -552,6 +633,7 @@ import pdfkit
 def export_pdf():
     # 1. Отримуємо параметри фільтрації та нові параметри налаштування
     filter_sql, params = build_filter_query(request.args)
+    
     birthday_filter = request.args.get('birthday_filter') == 'true'
     # 2. Враховуємо фільтр днів народження (іменинники тижня)
     if birthday_filter:
@@ -578,7 +660,8 @@ def export_pdf():
         #"""
         
     print(f"people/export_pdf filter_sql {filter_sql}")
-        
+    
+    searchInput = request.args.get('searchInput', '').strip()    
     photo_size_key = request.args.get('photo_size', 'medium')  # За замовчуванням середній
     header_filters = request.args.get('header_filters', 'Всі записи') # Другий рядок заголовка
     if birthday_filter:
@@ -652,6 +735,7 @@ def export_pdf():
     # 3. Рендеринг шаблону з новими змінними
     html_out = render_template('pdf_report.html', 
                                people=people_data, 
+                               searchInput=searchInput,
                                header_filters=header_filters, # Опис фільтрів під назвою
                                pdf_style=pdf_style,           # Об'єкт зі стилями
                                today=datetime.now().strftime('%d.%m.%Y'),

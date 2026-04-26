@@ -95,6 +95,9 @@
     <div class="header">
         <h1>Список членів церкви Благодать</h1>
         <div class="filter-line">{{ header_filters }}</div>
+        {% if searchInput %}
+            <div class="filter-line">Рядок пошуку: {{ searchInput }}</div>
+        {% endif %}
         <div class="meta-line">Дата звіту: {{ today }} | Всього осіб: {{ total }}</div>
     </div>
 
