@@ -6,32 +6,21 @@ let birthdayFilterActive = false;
 const USER_ROLE = document.body.dataset.userRole || 'viewer';
 
 // Початкова конфігурація колонок
-let columnConfigOld = {
-    id: { title: 'ID', visible: true },
-    name: { title: "Ім'я", visible: true },
-    Mobile_Phone: { title: 'Мобільний', visible: true },
-    Home_phone: { title: 'Домашній', visible: false },
-    Work_phone: { title: 'Робочий', visible: false },
-    email: { title: 'Email', visible: true },
-    address: { title: 'Адреса', visible: false },
-    church_status: { title: 'Статус', visible: true },
-    send_bd_sms: { title: 'SMS', visible: true },
-    children: { title: 'Діти', visible: true },
-    actions: { title: 'Дії', visible: true }
-};
-
-// Початкова конфігурація колонок
 let columnConfig = {
+    photo: { title: 'Фото', visible: true },
     id: { title: 'ID', visible: true },
     name: { title: "Ім'я", visible: true },
+    gender: { title: "Стать", visible: true },
     phones: { title: 'Телефони', visible: true }, // Об'єднана колонка
     Date_of_Birth: { title: 'Дн', visible: true },
     Date_of_Bapt: { title: 'Хрещення', visible: true },
     email: { title: 'Email', visible: false },
     address: { title: 'Адреса', visible: false },
+    fam_status: { title: 'Сім\'я', visible: true },
     church_status: { title: 'Статус', visible: true },
     children: { title: 'Діти', visible: true },
     send_bd_sms: { title: 'SMS', visible: false },
+    notes: { title: 'Нотатка', visible: false },
     actions: { title: 'Дії', visible: true }
 };
 
@@ -122,6 +111,24 @@ function renderHeaders() {
     });
 }
 
+function renderTableRow(person) {
+    // Шлях до фото або заглушка
+    const photoUrl = person.has_photo ? `/api/photo/${person.id}` : '/static/img/no-photo.png';
+    
+    return `
+        <tr>
+            <td style="width: 50px;">
+                <div class="person-photo-wrapper" onclick="editPerson(${person.id})">
+                    <img src="${photoUrl}" class="table-photo" alt="Фото">
+                </div>
+            </td>
+            <td class="fw-bold text-primary" style="cursor:pointer" onclick="editPerson(${person.id})">
+                ${person.name}
+            </td>
+            </tr>
+    `;
+}
+
 // 3. ЄДИНА правильна функція рендерингу таблиці
 function renderPeople(people) {
     // ВАЖЛИВО: Кешуємо дані, щоб toggleColumn міг їх перемалювати без запиту на сервер
@@ -135,30 +142,48 @@ function renderPeople(people) {
 
     tbody.innerHTML = '';
     people.forEach(person => {
-        const tr = document.createElement('tr');
-        // Створюємо прихований контейнер для фото, який буде видно тільки на мобільних
-        const mobilePhotoContainer = document.createElement('div');
-        mobilePhotoContainer.className = 'mobile-photo-box';
-        const photoUrl = person.has_photo 
-            ? `${SCRIPT_ROOT}/api/photo_file_people/${person.id}?t=${new Date().getTime()}`
-            : `${SCRIPT_ROOT}/static/img/no-avatar.png`; // переконайтеся, що файл існує
-        mobilePhotoContainer.innerHTML = `<img src="${photoUrl}" alt="${person.name}">`;
-        
-        tr.appendChild(mobilePhotoContainer); // Додаємо в рядок
+         const tr = document.createElement('tr');
         // Повертаємо підсвітку рядка та завантаження фото по кліку
-        tr.onclick = () => {
-            document.querySelectorAll('tr').forEach(r => r.classList.remove('table-active-row'));
-            tr.classList.add('table-active-row');
-            if (typeof loadPhotos === 'function') loadPhotos(person.id, person.name);
-        };
+        //~ tr.onclick = () => {
+            //~ document.querySelectorAll('tr').forEach(r => r.classList.remove('table-active-row'));
+            //~ tr.classList.add('table-active-row');
+            //~ if (typeof loadPhotos === 'function') loadPhotos(person.id, person.name);
+        //~ };
 
         Object.keys(columnConfig).forEach(key => {
             if (!columnConfig[key].visible) return;
 
             const td = document.createElement('td');
             td.setAttribute('data-label', columnConfig[key].title);
+            
+            if (key==='photo') {
+                
+                const photoUrl = person.has_photo 
+                    ? `${SCRIPT_ROOT}/api/photo_file_people/${person.id}?t=${new Date().getTime()}`
+                    : `${SCRIPT_ROOT}/static/img/no-avatar.png`; // переконайтеся, що файл існує
+                
+                const tablePhotoContainer = document.createElement('div');
+                tablePhotoContainer.className = 'table-photo-box';
+                tablePhotoContainer.innerHTML = `<div class="person-photo-wrapper" data-bs-toggle="modal" data-bs-target="#photoEditModal" >
+                            <img src="${photoUrl}" class="table-photo" alt="${person.name}">
+                        </div>`;
+                
+                td.appendChild(tablePhotoContainer);
 
-            if (key === 'phones') {
+                // Створюємо прихований контейнер для фото, який буде видно тільки на мобільних
+                const mobilePhotoContainer = document.createElement('div');
+                mobilePhotoContainer.className = 'mobile-photo-box';
+                mobilePhotoContainer.innerHTML = `<img src="${photoUrl}" alt="${person.name}">`;
+                
+                
+
+                td.appendChild(mobilePhotoContainer); // Додаємо 
+                td.onclick = () => {
+                    if (typeof loadPhotos === 'function') loadPhotos(person.id, person.name);
+                };
+                                
+            }
+            else if (key === 'phones') {
                 const phoneFields = ['Mobile_Phone', 'Home_phone', 'Work_phone', 'Mobile_Phone_a'];
                 const formatted = phoneFields
                     .map(f => person[f])
@@ -177,6 +202,14 @@ function renderPeople(people) {
             }
             else if (key === 'church_status') {
                 const statusObj = lookupLists.church_status?.find(s => s.id == person[key]);
+                td.textContent = statusObj ? statusObj.list_name : (person[key] || '');
+            }
+            else if (key === 'fam_status') {
+                const statusObj = lookupLists.fam_status?.find(s => s.id == person[key]);
+                td.textContent = statusObj ? statusObj.list_name : (person[key] || '');
+            }
+            else if (key === 'gender') {
+                const statusObj = lookupLists.gender?.find(s => s.id == person[key]);
                 td.textContent = statusObj ? statusObj.list_name : (person[key] || '');
             }
             else if (key === 'actions') {
@@ -198,94 +231,7 @@ function renderPeople(people) {
     });
 }
 
-function renderPeople_old(people) {
-    window.currentPeopleData = people; // Кешуємо для перемикання колонок
-    const tbody = document.getElementById('peopleTableBody');
-    tbody.innerHTML = '';
 
-    people.forEach(person => {
-        const tr = document.createElement('tr');
-        // Додаємо клас для підсвічування обраного рядка
-        tr.onclick = () => {
-            document.querySelectorAll('tr').forEach(r => r.classList.remove('table-active-row'));
-            tr.classList.add('table-active-row');
-            if (typeof loadPhotos === 'function') loadPhotos(person.id, person.name);
-        };
-
-        let rowContent = '';
-        
-        if (columnConfig.id.visible) rowContent += `<td>${person.id}</td>`;
-        if (columnConfig.name.visible) rowContent += `<td class="fw-bold">${person.name}</td>`;
-        if (columnConfig.Mobile_Phone.visible) rowContent += `<td>${formatPhoneNumber(person.Mobile_Phone) || ''}</td>`;
-        if (columnConfig.Home_phone.visible) rowContent += `<td>${formatPhoneNumber(person.Home_phone) || ''}</td>`;
-        if (columnConfig.Work_phone.visible) rowContent += `<td>${formatPhoneNumber(person.Work_phone) || ''}</td>`;
-        if (columnConfig.email.visible) rowContent += `<td>${person.email || ''}</td>`;
-        if (columnConfig.address.visible) rowContent += `<td><small>${person.address || ''}</small></td>`;
-        
-        if (columnConfig.church_status.visible) {
-			// Використовуємо наш новий помічник для перекладу
-			//console.log(person.church_status + " ");
-			const statusFind = (lookupLists.church_status || []).find(item => item.id === person.church_status);
-			const statusText = statusFind ? statusFind.list_name : (person.church_status || '');
-			
-			// Визначаємо колір бейджа (опціонально, для краси)
-			const badgeClass = person.church_status == 1 ? 'bg-success' : 'bg-light text-dark';
-			
-			rowContent += `<td><span class="badge ${badgeClass} border">${statusText}</span></td>`;
-		}
-        
-        if (columnConfig.send_bd_sms.visible) {
-            rowContent += `<td class="text-center">${person.send_bd_sms ? '✅' : '❌'}</td>`;
-        }
-
-        if (columnConfig.actions.visible) {
-            rowContent += `
-                <td class="text-end">
-                    <button class="btn btn-sm btn-outline-primary" onclick="openModal(${person.id})">✎</button>
-                    <button class="btn btn-sm btn-outline-danger" onclick="deletePerson(${person.id})">🗑</button>
-                </td>
-            `;
-        }
-
-        tr.innerHTML = rowContent;
-        tbody.appendChild(tr);
-    });
-}
-
-// Налаштування слухачів після завантаження сторінки
-document.addEventListener('DOMContentLoaded', () => {
-    // Для текстових полів (input)
-    document.querySelectorAll('.filter-input').forEach(input => {
-        input.addEventListener('input', processChange);
-    });
-
-    // Для списків (select) — спрацьовує миттєво при виборі
-    document.querySelectorAll('.filter-select').forEach(select => {
-        select.addEventListener('change', () => applyFilters());
-    });
-    
-    loadSavedFilters();
-});
-
-
-// Додаємо ініціалізацію в обробник завантаження
-document.addEventListener('DOMContentLoaded', async () => {
-    loadSettings();
-    initColumnMenu();
-    //renderHeaders();
-    await fetchLists();
-    renderFilterCheckboxes();
-    loadSavedFilters();
-    loadPeople();
-    // Обробник зміни ліміту на сторінку
-    document.getElementById('limitSelect').addEventListener('change', (e) => {
-        currentLimit = e.target.value;
-        currentPage = 1;
-        renderFilterCheckboxes();
-		loadSavedFilters();
-        loadPeople();
-    });
-});
 
 function toggleLoader(show) {
     const loader = document.getElementById('loader');
@@ -363,9 +309,10 @@ async function loadSavedFilters() {
         
         if (settings && Object.keys(settings).length > 0) {
             // 1. Відновлення текстових полів
-            if (settings.f_name) document.getElementById('f_name').value = settings.f_name;
-            if (settings.f_phone) document.getElementById('f_phone').value = settings.f_phone;
-            if (settings.f_address) document.getElementById('f_address').value = settings.f_address;
+            if (settings.searchInput) document.getElementById('searchInput').value = settings.searchInput;
+            //if (settings.f_name) document.getElementById('f_name').value = settings.f_name;
+            //if (settings.f_phone) document.getElementById('f_phone').value = settings.f_phone;
+            //if (settings.f_address) document.getElementById('f_address').value = settings.f_address;
 
             // 2. Відновлення чекбоксів (стать, церковний статус, сімейний стан)
             // Масив ключів відповідає префіксам, які ми використовували при створенні чекбоксів
@@ -428,7 +375,7 @@ function getFilterLabels() {
         }
     });
 
-    return labels.length > 0 ? `(${labels.join(' | ')})` : '';
+    return labels.length > 0 ? `(${labels.join(' | ')})` : 'без фільтрів';
 }
 
 async function loadPeople() {
@@ -443,13 +390,15 @@ async function loadPeople() {
     });
 
     // Текстові фільтри (з основної панелі)
-    const fName = document.getElementById('f_name').value;
-    const fPhone = document.getElementById('f_phone').value;
-    const fAddress = document.getElementById('f_address').value;
+    const searchInput = document.getElementById('searchInput').value;
+    //const fName = document.getElementById('f_name').value;
+    //const fPhone = document.getElementById('f_phone').value;
+    //const fAddress = document.getElementById('f_address').value;
 
-    if (fName) params.append('name', fName);
-    if (fPhone) params.append('phone', fPhone);
-    if (fAddress) params.append('address', fAddress);
+    if (searchInput) params.append('searchInput', searchInput);
+    //if (fName) params.append('name', fName);
+    //if (fPhone) params.append('phone', fPhone);
+    //if (fAddress) params.append('address', fAddress);
 
     // Чекбокси з модального вікна (збираємо вибрані ID)
     // Додаємо їх як масиви, які очікує Flask: genders[], church_status[], family_status[]
@@ -509,16 +458,20 @@ function debounce(func, timeout = 500) {
 
 // Обробник змін у текстових полях
 const processChange = debounce(() => {
-    const fName = document.getElementById('f_name').value;
-    const fPhone = document.getElementById('f_phone').value;
-    const fAddress = document.getElementById('f_address').value;
+    const searchInput = document.getElementById('searchInput').value;
+    //const fName = document.getElementById('f_name').value;
+    //const fPhone = document.getElementById('f_phone').value;
+    //const fAddress = document.getElementById('f_address').value;
 
     // Умова: запускати пошук тільки якщо введено 3+ символи АБО якщо поле очищено
-    const isNameValid = fName.length >= 3 || fName.length === 0;
-    const isPhoneValid = fPhone.length >= 3 || fPhone.length === 0;
-    const isAddressValid = fAddress.length >= 3 || fAddress.length === 0;
+    const isSearchValid = searchInput.length >= 3 || searchInput.length === 0;
+    //const isNameValid = fName.length >= 3 || fName.length === 0;
+    //const isPhoneValid = fPhone.length >= 3 || fPhone.length === 0;
+    //const isAddressValid = fAddress.length >= 3 || fAddress.length === 0;
 
-    if (isNameValid && isPhoneValid && isAddressValid) {
+    
+    //if (isNameValid && isPhoneValid && isAddressValid) {
+    if (isSearchValid) {
         applyFilters();
     }
 });
@@ -580,9 +533,10 @@ async function applyFilters() {
     
     // Збираємо стан усіх фільтрів для збереження в БД
     const settings = {
-        f_name: document.getElementById('f_name').value,
-        f_phone: document.getElementById('f_phone').value,
-        f_address: document.getElementById('f_address').value,
+        searchInput: document.getElementById('searchInput').value,
+        //f_name: document.getElementById('f_name').value,
+        //f_phone: document.getElementById('f_phone').value,
+        //f_address: document.getElementById('f_address').value,
         // Зберігаємо масиви як JSON-рядки
         f_genders: JSON.stringify(getSelectedCheckboxes('gender')),
         f_churchs: JSON.stringify(getSelectedCheckboxes('church')),
@@ -600,9 +554,10 @@ async function applyFilters() {
 
 function clearFilters() {
     // Очищення текстових полів
-    document.getElementById('f_name').value = '';
-    document.getElementById('f_phone').value = '';
-    document.getElementById('f_address').value = '';
+    document.getElementById('searchInput').value = ''; 
+    //document.getElementById('f_name').value = '';
+    //document.getElementById('f_phone').value = '';
+    //document.getElementById('f_address').value = '';
     
     // Зняття галочок з усіх чекбоксів
     document.querySelectorAll('.filter-checkbox').forEach(cb => cb.checked = false);
@@ -753,6 +708,8 @@ async function loadPhotos(peopleId, personName) {
 
 // Змінна для збереження ID фото, яке ми хочемо замінити
 let photoIdToReplace = null;
+
+
 
 function triggerReplace(photoId) {
     photoIdToReplace = photoId;
@@ -1059,13 +1016,15 @@ function runServerExport() {
     }
     
     // 1. Збираємо фільтри для серверного запиту (ваша існуюча логіка)
-    const fName = document.getElementById('f_name').value;
-    const fPhone = document.getElementById('f_phone').value;
-    const fAddress = document.getElementById('f_address').value;
+    const searchInput = document.getElementById('searchInput').value;
+    //const fName = document.getElementById('f_name').value;
+    //const fPhone = document.getElementById('f_phone').value;
+    //const fAddress = document.getElementById('f_address').value;
 
-    if (fName) params.append('name', fName);
-    if (fPhone) params.append('phone', fPhone);
-    if (fAddress) params.append('address', fAddress);
+    if (searchInput) params.append('searchInput', searchInput);
+    //if (fName) params.append('name', fName);
+    //if (fPhone) params.append('phone', fPhone);
+    //if (fAddress) params.append('address', fAddress);
 
     ['gender', 'church', 'family'].forEach(key => {
         const selected = getSelectedCheckboxes(key);
@@ -1106,7 +1065,7 @@ function runServerExport() {
 }
 
 // Викликаємо оновлення прев'ю при відкритті модалки
-document.getElementById('exportPdfModal').addEventListener('shown.bs.modal', updatePdfPreview);
+//document.getElementById('exportPdfModal').addEventListener('shown.bs.modal', updatePdfPreview);
 
 function toggleBirthdayFilter() {
     birthdayFilterActive = !birthdayFilterActive;

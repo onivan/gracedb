@@ -1,147 +1,213 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="row">
-    <div class="col-md-8">
+<style>
+    /* Головний контейнер на всю висоту */
+    .main-content-wrapper {
+        display: flex;
+        flex-direction: column;
+        min-height: calc(100vh - 120px);
+    }
+
+    /* Таблиця та обгортка */
+    .table-container {
+        flex-grow: 1;
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        overflow: hidden;
+        margin-bottom: 20px;
+    }
+
+    .table thead th {
+        background-color: #f8f9fa;
+        border-bottom: 2px solid #dee2e6;
+        color: #495057;
+        font-weight: 600;
+        white-space: nowrap;
+        padding: 12px 15px;
+    }
+
+    /* Стилі для фото в таблиці з ефектом Zoom */
+    .person-photo-wrapper {
+        width: 42px;
+        height: 42px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        position: relative;
+    }
+
+    .table-photo {
+        width: 40px;
+        height: 40px;
+        object-fit: cover;
+        border-radius: 8px;
+        border: 1px solid #ddd;
+        transition: transform 0.2s;
+    }
+
+    .table-photo:hover {
+        transform: scale(3) translateX(15px);
+        z-index: 10;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    }
+
+    /* Керування кнопками */
+    .sticky-controls {
+        background: #f4f7f6;
+        padding-bottom: 15px;
+    }
+</style>
+
+<div class="main-content-wrapper" data-user-role="{{ session.get('user', {}).get('role', 'viewer') }}">
+    <div class="container-fluid">
         <div class="sticky-controls">
-            <div class="d-flex flex-wrap gap-2 mb-3">
-                <h2 class="h4">База людей</h2>
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
+                <h2 class="h4 mb-0">База людей</h2>
+                <div>
+                <button id="activeFiltersDisplay" class="btn btn-outline-danger btn-sm" style="font-size: 0.85rem; font-weight: normal;" onclick="toggleAdvancedFilters()"></button><br />
+                <span id="resultsCount" class="badge bg-secondary ms-2" style="font-size: 0.75rem;"></span>
+                </div>
+                
                 <div class="d-flex gap-2">
-                    <button class="btn btn-outline-danger flex-fill" 
-                            data-bs-toggle="modal" 
-                            data-bs-target="#exportPdfModal"
-                            onclick="updatePdfPreview()"> 📄 PDF
+                    <button class="btn btn-primary" type="button" data-bs-toggle="collapse" data-bs-target="#searchPanel">
+                        🔍 Пошук
                     </button>
-                    <button id="btn-birthday" class="btn btn-outline-info flex-fill" onclick="toggleBirthdayFilter()">
+                    <button id="btn-birthday" class="btn btn-outline-info" onclick="toggleBirthdayFilter()">
                         🎂 Дні народження
                     </button>
-                    <a href="/api/admin/db/download" class="btn btn-outline-secondary btn-sm">
-                        📥 Скачати БД
-                    </a>
-                    
-                    <button class="btn btn-outline-info flex-fill" onclick="document.getElementById('dbInput').click()">
-                        📤 Оновити БД
+                    <button class="btn btn-outline-danger" 
+                            data-bs-toggle="modal" 
+                            data-bs-target="#exportPdfModal"
+                            onclick="updatePdfPreview()" >
+                        📄 PDF Експорт
                     </button>
                     
+                    <div class="btn-group">
+                        <a href="{{ url_for('download_db') }}" class="btn btn-outline-secondary">
+                            📥 Скачати БД
+                        </a>
+                        <button class="btn btn-outline-secondary" onclick="document.getElementById('dbInput').click()">
+                            📤 Оновити
+                        </button>
+                    </div>
                     <input type="file" id="dbInput" style="display: none;" accept=".sqlite" onchange="uploadDatabase(this)">
+                    
                 </div>
+                
+                
+            </div>
 
-                <div class="d-flex align-items-center">
-                    <select id="limitSelect" class="form-select form-select-sm d-inline-block w-auto me-2">
-                        <option value="5">5</option>
-                        <option value="10">10</option>
-                        <option value="20">20</option>
-                        <option value="50">50</option>
-                    </select>
+            <div class="collapse mb-3" id="searchPanel">
+                <div class="card card-body shadow-sm">
+                    <div class="row g-2 align-items-center">
+                        <div class="col-md-8">
+                            <input type="text" id="searchInput" class="form-control filter-input" placeholder="Пошук за прізвищем, телефоном..." oninput="currentPage=1; loadPeople()">
+                        </div>
+                        <div class="col-md-4">
+                            <button class="btn btn-secondary w-100" onclick="toggleAdvancedFilters()">
+                                ⚙️ Розширені фільтри
+                            </button>
+                        </div>
+                    </div>
+                    <div id="advancedFilters" class="mt-3 d-none">
+                        </div>
+                </div>
+            </div>
+        </div>
 
-                    <div class="dropdown me-2">
+        <div class="d-flex flex-wrap justify-content-between align-items-center pb-4">
+            <div class="d-flex align-items-center mb-2">
+                <span class="me-2 text-muted">Показувати по:</span>
+                <select id="limitSelect" class="form-select form-select-sm w-auto" onchange="currentLimit=this.value; currentPage=1; loadPeople()">
+                    <option value="5">5</option>
+                    <option value="10" selected>10</option>
+                    <option value="20">20</option>
+                    <option value="50">50</option>
+                </select>
+                
+                <div class="dropdown me-2">
                         <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
                             ⚙️ Колонки
                         </button>
                         <ul class="dropdown-menu dropdown-menu-end p-2" id="columnToggleMenu" style="min-width: 200px;">
                             </ul>
-                    </div>
-
-                    <button class="btn btn-primary btn-sm" onclick="openModal()">+ Додати особу</button>
                 </div>
             </div>
-     
-            <div class="card shadow-sm mb-4">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h5 class="card-title h6 mb-0">🔍 Пошук
-                        <span id="activeFiltersDisplay" class="text-primary ms-2" style="font-size: 0.85rem; font-weight: normal;"></span><br />
-    <!--
-                        <span id="birthdayFilterActiveDisplay" class="text-primary ms-2" style="font-size: 0.85rem; font-weight: normal;"></span>
-    -->
-                        <span id="resultsCount" class="badge bg-secondary ms-2" style="font-size: 0.75rem;"></span>
-                        </h5>
-                        <button class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#advancedFilterModal">
-                            ⚙️ Розширені фільтри
-                        </button>
-                    </div>
-                    <div class="row g-2">
-                        <div class="col-md-4">
-                            <input type="text" id="f_name" class="form-control form-control-sm filter-input" placeholder="ПІБ (від 3-х симв.)...">
-                        </div>
-                        <div class="col-md-4">
-                            <input type="text" id="f_phone" class="form-control form-control-sm filter-input" placeholder="Телефон...">
-                        </div>
-                        <div class="col-md-4">
-                            <input type="text" id="f_address" class="form-control form-control-sm filter-input" placeholder="Адреса...">
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            
+            <nav>
+                <ul class="pagination pagination-sm mb-0" id="paginationControls">
+                    </ul>
+            </nav>
         </div>
-		<div class="card shadow-sm">
-			<div class="table-responsive">
-				<table class="table table-hover mb-0" id="mainPeopleTable" style="font-size: 0.85rem;">
-					<thead class="table-light">
-						<tr id="tableHeader">
+        
+        <div class="table-container">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0" id="mainPeopleTable">
+                    <thead>
+                        <tr id="tableHeader">
 							</tr>
-					</thead>
-					<tbody id="peopleTableBody">
-						</tbody>
-				</table>
-			</div>
-		</div>
-
-        <nav class="mt-3">
-            <ul class="pagination pagination-sm justify-content-center" id="paginationControls"></ul>
-        </nav>
-    </div>
-
-    <div class="col-md-4">
-        <div class="sticky-top" style="top: 20px;">
-            <div class="card shadow-sm">
-                <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                    <h5 id="photoSectionTitle" class="mb-0, h6">Фото</h5>
-                </div>
-                <div class="card-body">
-                    <div id="photosContainer" class="row g-2 mb-3">
-                        <p class="text-muted small text-center">Виберіть особу для перегляду</p>
-                    </div>
-
-                    <div id="photoActions" class="d-none border-top pt-3">
-                        <input type="file" id="photoInput" style="display: none;" accept="image/*" onchange="uploadPhoto()">
-                        
-                        <div class="d-grid gap-2">
-                            <button class="btn btn-outline-success btn-sm" onclick="document.getElementById('photoInput').click()">
-                                📸 Додати нове фото
-                            </button>
-                            <p class="text-muted text-center" style="font-size: 0.7rem;">
-                                Щоб замінити, видаліть старе та додайте нове
-                            </p>
-                        </div>
-                    </div>
-                </div>
+                        </thead>
+                    <tbody id="peopleTableBody">
+                        </tbody>
+                </table>
             </div>
         </div>
+
+        
     </div>
 </div>
 
 
-
-
-<!-- <div id="pdf-export-container" style="display: none;">
-    <div id="pdf-template" style="padding: 15mm; background: white; color: black; width: 190mm;">
-        <div style="text-align: center; border-bottom: 2px solid #333; margin-bottom: 20px; padding-bottom: 10px;">
-            <h2 style="margin: 0;">Звіт: Церква Благодать</h2>
-            <p id="pdf-meta-info" style="margin: 5px 0 0 0; font-size: 12px;"></p>
-        </div>
-        <div id="pdf-people-list" style="display: flex; flex-wrap: wrap; gap: 10px;">
-            </div>
-    </div>
-</div>
--->
 
 {% endblock %}
 
 {% block modals %}
-    <div class="modal fade" id="advancedFilterModal" tabindex="-1" aria-hidden="true">
+
+{% include 'includes/_person_modal.html' %}
+
+
+<div class="modal fade" id="exportPdfModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">Налаштування PDF звіту</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-5">
+                        <label class="form-label fw-bold">Розмір фото:</label>
+                        <select id="pdfPhotoSize" class="form-select mb-3" onchange="updatePdfPreview()">
+                            <option value="small">Малий (20x25 мм)</option>
+                            <option value="medium" selected>Середній (30x35 мм)</option>
+                            <option value="large">Великий (45x55 мм)</option>
+                        </select>
+                        <div class="alert alert-info small">
+                            Звіт буде сформовано згідно з вашими поточними фільтрами та пошуковим запитом.
+                        </div>
+                    </div>
+                    <div class="col-md-7 border-start">
+                        <h6 class="text-center mb-3 text-muted">Попередній перегляд картки</h6>
+                        <div id="pdfPreviewContainer" class="d-flex justify-content-center align-items-center" 
+                             style="background: #f8f9fa; padding: 20px; border: 1px dashed #ccc; min-height: 200px;">
+                            <div class="spinner-border text-danger" role="status">
+                                <span class="visually-hidden">Завантаження...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer bg-light">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Скасувати</button>
+                <button type="button" class="btn btn-danger px-4" onclick="runServerExport()">Створити PDF</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="advancedFilterModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
@@ -167,55 +233,95 @@
                 </div>
             </div>
         </div>
-    </div>
+</div>
     
-    
-    <div class="modal fade" id="exportPdfModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-lg">
+<div class="modal fade" id="photoEditModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">Експорт у PDF</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    <h5 id="photoSectionTitle" class="mb-0, h6">Фото</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <div class="row">
-                        <div class="col-md-5 border-end">
-                            <h6>Налаштування вигляду</h6>
-                            <label class="form-label small text-muted">Розмір фотографії:</label>
-                            <select id="pdfPhotoSize" class="form-select mb-4" onchange="updatePdfPreview()">
-                                <option value="small">Маленький (20х25 мм)</option>
-                                <option value="medium" selected>Середній (30x35 мм)</option>
-                                <option value="large">Великий (45x55 мм)</option>
-                            </select>
-                            <div class="alert alert-info small">
-                                Звіт буде сформовано згідно з вашими поточними фільтрами.
-                            </div>
-                        </div>
+                    <div id="photosContainer" class="row g-2 mb-3">
+                        <p class="text-muted small text-center">Виберіть особу для перегляду</p>
+                    </div>
+
+                    <div id="photoActions" class="d-none border-top pt-3">
+                        <input type="file" id="photoInput" style="display: none;" accept="image/*" onchange="uploadPhoto()">
                         
-                        <div class="col-md-7">
-                            <h6 class="text-center mb-3">Попередній перегляд однієї картки</h6>
-                            <div class="d-flex justify-content-center">
-                                <div id="pdfPreviewContainer" style="background: #f8f9fa; padding: 20px; border: 1px dashed #ccc; width: 100%;">
-                                    </div>
-                            </div>
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-outline-success btn-sm" onclick="document.getElementById('photoInput').click()">
+                                📸 Додати нове фото
+                            </button>
+                            <p class="text-muted text-center" style="font-size: 0.7rem;">
+                                Щоб замінити, видаліть старе та додайте нове
+                            </p>
                         </div>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Скасувати</button>
-                    <button type="button" class="btn btn-danger" onclick="runServerExport()">Згенерувати PDF</button>
+                    
                 </div>
             </div>
         </div>
-    </div>
+</div>
 
-    {% include 'includes/_person_modal.html' %}
-
+    
 {% endblock %}
 
 {% block scripts %}
-<!--
-<script src="{{ url_for('static', filename='js/app.js') }}"></script>
--->
+<script>
+    
+    // Налаштування слухачів після завантаження сторінки
+    document.addEventListener('DOMContentLoaded', () => {
+        // Для текстових полів (input)
+        document.querySelectorAll('.filter-input').forEach(input => {
+            input.addEventListener('input', processChange);
+        });
 
+        // Для списків (select) — спрацьовує миттєво при виборі
+        document.querySelectorAll('.filter-select').forEach(select => {
+            select.addEventListener('change', () => applyFilters());
+        });
+        
+        loadSavedFilters();
+    });
+
+
+    // Додаємо ініціалізацію в обробник завантаження
+    document.addEventListener('DOMContentLoaded', async () => {
+        loadSettings();
+        initColumnMenu();
+        //renderHeaders();
+        await fetchLists();
+        renderFilterCheckboxes();
+        loadSavedFilters();
+        //loadPeople();
+        // Обробник зміни ліміту на сторінку
+        document.getElementById('limitSelect').addEventListener('change', (e) => {
+            currentLimit = e.target.value;
+            currentPage = 1;
+            renderFilterCheckboxes();
+            loadSavedFilters();
+            //loadPeople();
+        });
+    });
+    document.addEventListener('DOMContentLoaded', () => {
+        
+        // Оновлення прев'ю PDF при відкритті модального вікна
+        const pdfModal = document.getElementById('exportPdfModal');
+        pdfModal.addEventListener('shown.bs.modal', () => {
+            if (typeof updatePdfPreview === 'function') {
+                updatePdfPreview();
+            }
+        });
+    });
+
+    function toggleAdvancedFilters() {
+        const modalElement = document.getElementById('advancedFilterModal');
+        const modalInstance = bootstrap.Modal.getOrCreateInstance(modalElement);
+        modalInstance.show();
+    }
+</script>
 {% endblock %}

@@ -202,9 +202,10 @@ def get_people():
         offset = (page - 1) * limit
 
         # Текстові фільтри
-        f_name = request.args.get('name', '').strip()
-        f_phone = request.args.get('phone', '').strip()
-        f_address = request.args.get('address', '').strip()
+        searchInput = request.args.get('searchInput', '').strip()
+        #f_name = request.args.get('name', '').strip()
+        #f_phone = request.args.get('phone', '').strip()
+        #f_address = request.args.get('address', '').strip()
 
         # Фільтри-масиви (з чекбоксів модального вікна)
         # Очікуємо формат від JS: ?genders[]=1&genders[]=2...
@@ -219,19 +220,19 @@ def get_people():
         params = []
 
         # Пошук по імені
-        if f_name:
-            query += " AND name LIKE ?"
-            params.append(f'%{f_name}%')
+        #if f_name:
+        #    query += " AND (name OR LIKE ?"
+        #    params.append(f'%{f_name}%')
 
         # Пошук по всіх доступних телефонах у схемі
-        if f_phone:
-            query += " AND (Mobile_Phone LIKE ? OR Home_phone LIKE ? OR Work_phone LIKE ? OR Mobile_Phone_a LIKE ?)"
-            params.extend([f'%{f_phone}%', f'%{f_phone}%', f'%{f_phone}%', f'%{f_phone}%'])
+        if searchInput:
+            query += " AND (name LIKE ? OR address LIKE ? OR Mobile_Phone LIKE ? OR Home_phone LIKE ? OR Work_phone LIKE ? OR Mobile_Phone_a LIKE ? OR notes LIKE ?)"
+            params.extend([f'%{searchInput}%', f'%{searchInput}%', f'%{searchInput}%', f'%{searchInput}%', f'%{searchInput}%', f'%{searchInput}%', f'%{searchInput}%'])
 
         # Пошук за адресою
-        if f_address:
-            query += " AND address LIKE ?"
-            params.append(f'%{f_address}%')
+        #if f_address:
+        #    query += " AND address LIKE ?"
+        #    params.append(f'%{f_address}%')
 
         # Фільтр за статтю (колонка 'gender' у схемі)
         if f_genders:
@@ -669,7 +670,7 @@ def export_pdf():
         'quiet': '', # щоб не забивати лог сервера
         
         # ДОДАЄМО ЦІ РЯДКИ:
-        'footer-center': 'Сторінка [page] з [toPage]', # Текст по центру
+        'footer-center': '[page]/[toPage]', # Текст по центру
         'footer-font-size': '9',                        # Розмір шрифту
         'footer-spacing': '5',                         # Відступ від тексту до номера
         'footer-font-name': 'DejaVu Sans'
