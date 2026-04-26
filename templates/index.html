@@ -72,7 +72,7 @@
                 </div>
                 
                 <div class="d-flex gap-2">
-                    <button class="btn btn-primary" type="button" data-bs-toggle="collapse" data-bs-target="#searchPanel">
+                    <button id="searchToggleBtn" class="btn btn-primary" type="button" data-bs-toggle="collapse" data-bs-target="#searchPanel">
                         🔍 Пошук
                     </button>
                     <button id="btn-birthday" class="btn btn-outline-info" onclick="toggleBirthdayFilter()">
@@ -273,6 +273,51 @@
 {% block scripts %}
 <script>
     
+document.addEventListener('DOMContentLoaded', () => {
+    const searchPanel = document.getElementById('searchPanel');
+    const searchBtn = document.getElementById('searchToggleBtn');
+
+    if (searchPanel && searchBtn) {
+        // Подія, коли панель почала розгортатися
+        searchPanel.addEventListener('show.bs.collapse', () => {
+            searchBtn.innerHTML = '✖ Пошук';
+            searchBtn.classList.replace('btn-outline-primary', 'btn-primary');
+        });
+
+        // Подія, коли панель почала згортатися
+        searchPanel.addEventListener('hide.bs.collapse', () => {
+            searchBtn.innerHTML = '🔍 Пошук';
+            searchBtn.classList.replace('btn-primary', 'btn-outline-primary');
+        });
+    }
+});
+
+    // 1. При ініціалізації зчитуємо значення з localStorage або ставимо 5 за замовчуванням
+    let currentLimit = parseInt(localStorage.getItem('grace_page_limit')) || 5;
+
+    document.addEventListener('DOMContentLoaded', () => {
+        // 2. Встановлюємо значення селектора в UI відповідно до збереженого
+        const limitSelect = document.getElementById('limitSelect');
+        if (limitSelect) {
+            limitSelect.value = currentLimit;
+
+            // 3. Додаємо прослуховувач подій на зміну
+            limitSelect.addEventListener('change', (e) => {
+                currentLimit = parseInt(e.target.value);
+                // Зберігаємо вибір користувача
+                localStorage.setItem('grace_page_limit', currentLimit);
+                
+                // Скидаємо на першу сторінку та перезавантажуємо дані
+                currentPage = 1;
+                if (typeof loadPeople === 'function') {
+                    loadPeople();
+                }
+            });
+        }
+        
+        // Решта вашого коду ініціалізації...
+        loadPeople(); 
+    });
     // Налаштування слухачів після завантаження сторінки
     document.addEventListener('DOMContentLoaded', () => {
         // Для текстових полів (input)
@@ -299,13 +344,13 @@
         loadSavedFilters();
         //loadPeople();
         // Обробник зміни ліміту на сторінку
-        document.getElementById('limitSelect').addEventListener('change', (e) => {
-            currentLimit = e.target.value;
-            currentPage = 1;
-            renderFilterCheckboxes();
-            loadSavedFilters();
-            //loadPeople();
-        });
+        //document.getElementById('limitSelect').addEventListener('change', (e) => {
+        //    currentLimit = e.target.value;
+        //    currentPage = 1;
+        //    renderFilterCheckboxes();
+        //    loadSavedFilters();
+        //    loadPeople();
+        //});
     });
     document.addEventListener('DOMContentLoaded', () => {
         

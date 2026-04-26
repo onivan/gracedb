@@ -1,5 +1,5 @@
 let currentPage = 1;
-let currentLimit = 5;
+//let currentLimit = 5;
 let lookupLists = {};
 // Глобальна змінна для стану фільтра
 let birthdayFilterActive = false;
@@ -159,8 +159,8 @@ function renderPeople(people) {
             if (key==='photo') {
                 
                 const photoUrl = person.has_photo 
-                    ? `${SCRIPT_ROOT}/api/photo_file_people/${person.id}?t=${new Date().getTime()}`
-                    : `${SCRIPT_ROOT}/static/img/no-avatar.png`; // переконайтеся, що файл існує
+                    ? `${SCRIPT_ROOT}/api/photo_file_people/${person.id}`
+                    : `${SCRIPT_ROOT}/static/img/nophoto.jpg`; // переконайтеся, що файл існує
                 
                 const tablePhotoContainer = document.createElement('div');
                 tablePhotoContainer.className = 'table-photo-box';
