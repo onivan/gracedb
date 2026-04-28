@@ -158,26 +158,66 @@ function renderPeople(people) {
             
             if (key==='photo') {
                 
-                const photoUrl = person.has_photo 
-                    ? `${SCRIPT_ROOT}/api/photo_file_people/${person.id}`
-                    : `${SCRIPT_ROOT}/static/img/nophoto.jpg`; // переконайтеся, що файл існує
+                
+                const photoWrapper = document.createElement('div');
+                photoWrapper.className = 'person-photo-wrapper';
+                // Додаємо атрибути Bootstrap для відкриття модального вікна
+                photoWrapper.setAttribute('data-bs-toggle', 'modal');
+                photoWrapper.setAttribute('data-bs-target', '#photoEditModal');
+                // Зберігаємо виклик функції, щоб модалка знала, чиє фото завантажувати
+                //photoWrapper.onclick = () => showPhotoModal(person.id);
+                
+                // Створюємо спінер завантаження (замість gif)
+                const spinner = document.createElement('div');
+                spinner.className = 'spinner-border spinner-border-sm text-secondary';
+                spinner.setAttribute('role', 'status');
+                photoWrapper.appendChild(spinner);
+                
+                const img = document.createElement('img');
+                img.className = 'table-photo d-none'; // Додаємо клас
+                img.alt = person.name || 'Фото'; // Додаємо alt з ім'ям людини
+                //img.src = `${SCRIPT_ROOT}/static/img/loading.gif`; // Тимчасова іконка завантаження
+                
+                //~ const photoUrl = person.has_photo 
+                    //~ ? `${SCRIPT_ROOT}/api/photo_file_people/${person.id}`
+                    //~ : `${SCRIPT_ROOT}/static/img/nophoto.jpg`; // переконайтеся, що файл існує
+                    
+                // Використання асинхронного отримання фото з кешуванням (як обговорювали раніше)
+                if (typeof getPersonPhoto === 'function') {
+                    //img.src = `${SCRIPT_ROOT}/static/img/loading.gif`; // Тимчасова заглушка
+                    getPersonPhoto(person.id, person.photo_id).then(src => {
+                        img.src = src;
+                        img.classList.remove('d-none'); // Показуємо картинку
+                        spinner.remove(); // Видаляємо спінер
+                    });
+                } else {
+                    // Базовий варіант, якщо кешування ще не впроваджено
+                    img.src = person.photo ? `data:image/jpeg;base64,${person.photo}` : '${SCRIPT_ROOT}/img/no-photo.jpg';
+                }
+                
+                photoWrapper.appendChild(img);
+                //td.appendChild(photoWrapper);
+                
+                
                 
                 const tablePhotoContainer = document.createElement('div');
                 tablePhotoContainer.className = 'table-photo-box';
-                tablePhotoContainer.innerHTML = `<div class="person-photo-wrapper" data-bs-toggle="modal" data-bs-target="#photoEditModal" >
-                            <img src="${photoUrl}" class="table-photo" alt="${person.name}">
-                        </div>`;
+                tablePhotoContainer.appendChild(photoWrapper);
+                
+                //~ tablePhotoContainer.innerHTML = `<div class="person-photo-wrapper" data-bs-toggle="modal" data-bs-target="#photoEditModal" >
+                            //~ <img src="${photoUrl}" class="table-photo" alt="${person.name}">
+                        //~ </div>`;
                 
                 td.appendChild(tablePhotoContainer);
 
-                // Створюємо прихований контейнер для фото, який буде видно тільки на мобільних
-                const mobilePhotoContainer = document.createElement('div');
-                mobilePhotoContainer.className = 'mobile-photo-box';
-                mobilePhotoContainer.innerHTML = `<img src="${photoUrl}" alt="${person.name}">`;
+                //~ // Створюємо прихований контейнер для фото, який буде видно тільки на мобільних
+                //~ const mobilePhotoContainer = document.createElement('div');
+                //~ mobilePhotoContainer.className = 'mobile-photo-box';
+                //~ mobilePhotoContainer.innerHTML = `<img src="${photoUrl}" alt="${person.name}">`;
                 
                 
 
-                td.appendChild(mobilePhotoContainer); // Додаємо 
+                //~ td.appendChild(mobilePhotoContainer); // Додаємо 
                 td.onclick = () => {
                     if (typeof loadPhotos === 'function') loadPhotos(person.id, person.name);
                 };
@@ -212,6 +252,12 @@ function renderPeople(people) {
             else if (key === 'gender') {
                 const statusObj = lookupLists.gender?.find(s => s.id == person[key]);
                 td.textContent = statusObj ? statusObj.list_name : (person[key] || '');
+            }
+            else if (key === 'notes') {
+                const text = person[key] || "-";
+                td.innerHTML = `<span data-bs-toggle="tooltip" data-bs-placement="top" title="${text}">
+                                    ${text.length > 30 ? text.substring(0, 30) + '...' : text}
+                                </span>`;
             }
             else if (key === 'actions') {
                 // Додано event для зупинки поширення кліку (щоб не відкривалося фото при кліку на кнопки)
@@ -445,6 +491,11 @@ async function loadPeople() {
     } catch (err) {
         console.error("Помилка завантаження даних:", err);
     }
+    // Оновлення тултіпів після рендеру таблиці
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
 }
 
 // Затримка виконання, щоб не робити запит на кожен символ
@@ -1140,4 +1191,79 @@ function formatPhoneNumber(phone) {
     }
 
     return phone; // Якщо не підпадає під шаблони, повертаємо як було
+}
+
+const PHOTO_CACHE_PREFIX = 'grace_img_';
+
+
+
+/**
+ * Отримує фотографію людини з кешу або з сервера.
+ * @param {number|string} peopleId - ID людини.
+ * @param {number|string} photoId - Унікальний ID конкретного фото (з бази).
+ */
+async function getPersonPhoto(peopleId, photoId) {
+    // Якщо photoId порожній (null/0/undefined), повертаємо стандартну заглушку
+    if (!photoId) return `${SCRIPT_ROOT}/static/img/nophoto.png`;
+
+    const cacheKey = `${PHOTO_CACHE_PREFIX}${peopleId}`;
+    const cachedData = localStorage.getItem(cacheKey);
+
+    // 1. Перевірка кешу в LocalStorage
+    if (cachedData) {
+        try {
+            const cache = JSON.parse(cachedData);
+            // Якщо ID фото в кеші збігається з актуальним photoId — повертаємо кешоване зображення
+            if (cache.photoId === photoId) {
+                return cache.data;
+            }
+        } catch (e) {
+            console.error("Помилка парсингу кешу фото:", e);
+            localStorage.removeItem(cacheKey);
+        }
+    }
+
+    // 2. Якщо в кеші немає або фото в базі оновилося (новий photoId) — робимо запит
+    try {
+        // Використовуємо новий маршрут /api/photo_file_people/
+        const response = await fetch(`${SCRIPT_ROOT}/api/photo_file_people/${peopleId}`);
+        const result = await response.json();
+
+        if (result.success && result.photo) {
+            const base64Photo = `data:image/jpeg;base64,${result.photo}`;
+            
+            // 3. Зберігаємо нове фото в кеш
+            try {
+                localStorage.setItem(cacheKey, JSON.stringify({
+                    photoId: photoId, // Зберігаємо photoId для перевірки валідності кешу в майбутньому
+                    data: base64Photo
+                }));
+            } catch (e) {
+                // Якщо місце в LocalStorage закінчилося (ліміт ~5MB), чистимо старий кеш фото і пробуємо знову
+                console.warn('LocalStorage full, clearing photo cache');
+                clearPhotoCache();
+                try {
+                    localStorage.setItem(cacheKey, JSON.stringify({ photoId, data: base64Photo }));
+                } catch (retryError) {
+                    // Якщо навіть після очистки не влізло (дуже велике фото), просто не кешуємо
+                }
+            }
+            
+            return base64Photo;
+        }
+    } catch (err) {
+        console.error("Помилка завантаження фото з сервера:", err);
+    }
+
+    // Якщо сталася помилка завантаження — повертаємо заглушку
+    return `${SCRIPT_ROOT}/static/img/nophoto.png`;
+}
+
+/**
+ * Очищає всі фотографії з LocalStorage, щоб звільнити місце.
+ */
+function clearPhotoCache() {
+    Object.keys(localStorage)
+        .filter(key => key.startsWith(PHOTO_CACHE_PREFIX))
+        .forEach(key => localStorage.removeItem(key));
 }

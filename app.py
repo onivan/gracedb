@@ -168,7 +168,7 @@ def role_required(*roles):
         def decorated_view(*args, **kwargs):
             # Перевірка, чи користувач залогінений та чи має він потрібну роль
             user = session.get('user')
-            if not user or user.get('role') not in roles:
+            if not user or session.get('role') not in roles:
                 return jsonify({
                     "success": False, 
                     "message": "У вас недостатньо прав для цієї операції"
@@ -233,8 +233,16 @@ def get_people():
         # Додаємо перевірку на тиждень народжень
         birthday_week = request.args.get('birthday_week')
         
-        query = "SELECT *, (SELECT 1 FROM photos WHERE people_id = people.id LIMIT 1) as has_photo FROM people WHERE 1=1"
+        #query = "SELECT people.*, photos.photo_id, (SELECT 1 FROM photos WHERE people_id = people.id LIMIT 1) as has_photo FROM people LEFT JOIN photos ON people.id = photos.people_id WHERE 1=1"
         params = []
+        
+        query = """
+            SELECT *, 
+            (SELECT photo_id FROM photos WHERE people_id = people.id ORDER BY photo_id DESC LIMIT 1) as photo_id,
+            (CASE WHEN EXISTS(SELECT 1 FROM photos WHERE people_id = people.id) THEN 1 ELSE 0 END) as has_photo
+            FROM people 
+            WHERE 1=1
+        """
 
         # Пошук по імені
         #if f_name:
@@ -485,17 +493,25 @@ def get_photo_file(photo_id):
 @app.route('/api/photo_file_people/<int:people_id>')
 @login_required
 def get_photo_file_people(people_id):
-    conn = get_db_connection()
-    row = conn.execute('SELECT photo, descr FROM photos WHERE people_id = ?', (people_id,)).fetchone()
-    conn.close()
-    
-    if row and row['photo']:
-        # Повертаємо бінарні дані як файл
-        return send_file(
-            io.BytesIO(row['photo']),
-            mimetype='image/jpeg'
-        )
-    return "Фото не знайдено", 404
+    conn = sqlite3.connect(DB_PATH) # Використовуйте ваше підключення
+    conn.row_factory = sqlite3.Row
+    try:
+        # Отримуємо саме фото
+        row = conn.execute('SELECT photo FROM photos WHERE people_id = ? ORDER BY photo_id DESC LIMIT 1', (people_id,)).fetchone()
+        
+        if row and row['photo']:
+            # Кодуємо бінарні дані в Base64 рядок
+            photo_b64 = base64.b64encode(row['photo']).decode('utf-8')
+            return jsonify({
+                "success": True,
+                "photo": photo_b64
+            })
+        
+        return jsonify({"success": False, "message": "Photo not found"}), 404
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+    finally:
+        conn.close()
 
 
 @app.route('/api/photos', methods=['POST'])
@@ -770,16 +786,16 @@ def export_pdf():
         download_name=f'Report_{datetime.now().strftime("%Y-%m-%d_%H%M")}.pdf'
     )        
 
-# Декоратор для перевірки ролей
-def role_required(*roles):
-    def wrapper(fn):
-        @wraps(fn)
-        def decorated_view(*args, **kwargs):
-            if not session.get('user') or session.get('user').get('role') not in roles:
-                return jsonify({"success": False, "message": "Недостатньо прав"}), 403
-            return fn(*args, **kwargs)
-        return decorated_view
-    return wrapper
+# ~ # Декоратор для перевірки ролей
+# ~ def role_required(*roles):
+    # ~ def wrapper(fn):
+        # ~ @wraps(fn)
+        # ~ def decorated_view(*args, **kwargs):
+            # ~ if not session.get('user') or session.get('user').get('role') not in roles:
+                # ~ return jsonify({"success": False, "message": "Недостатньо прав"}), 403
+            # ~ return fn(*args, **kwargs)
+        # ~ return decorated_view
+    # ~ return wrapper
 
 
 def format_phone_py(phone):
